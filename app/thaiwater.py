@@ -58,6 +58,9 @@ def parse_waterlevel_load(payload: dict) -> list[dict]:
         t, lvl = _time(r.get("waterlevel_datetime")), _float(r.get("waterlevel_msl"))
         if t is None or lvl is None:
             continue
+        if not config.plausible(st["id"], lvl):
+            log.warning("ตัดค่าที่เป็นไปไม่ได้ สถานี %s %s: %s", st["id"], t, lvl)
+            continue
         out.append({"station_id": st["id"], "t": t, "level_msl": lvl,
                     "discharge": _float(r.get("discharge"))})
     return out
@@ -70,6 +73,9 @@ def parse_waterlevel_graph(station_id: int, payload) -> list[dict]:
     for p in (payload.get("data") or {}).get("graph_data") or []:
         t, lvl = _time(p.get("datetime")), _float(p.get("value"))
         if t is None or lvl is None:
+            continue
+        if not config.plausible(station_id, lvl):
+            log.warning("ตัดค่าที่เป็นไปไม่ได้ สถานี %s %s: %s", station_id, t, lvl)
             continue
         out.append({"station_id": station_id, "t": t, "level_msl": lvl,
                     "discharge": _float(p.get("discharge"))})

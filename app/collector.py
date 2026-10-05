@@ -7,7 +7,7 @@ import threading
 import time
 from zoneinfo import ZoneInfo
 
-from . import config, forecast_log, model, store, thaiwater
+from . import config, forecast_log, forecast_logic, model, store, thaiwater
 
 log = logging.getLogger(__name__)
 TH = ZoneInfo("Asia/Bangkok")
@@ -83,8 +83,10 @@ def log_forecast() -> dict:
     if b is None:
         return {"logged": 0, "scored": 0}
     now = now_th()
-    pred = model.predict(b, store.hourly(start=now - dt.timedelta(days=4), end=now))
-    return {"logged": forecast_log.record(b, pred, now), "scored": forecast_log.score()}
+    wide = store.hourly(start=now - dt.timedelta(days=4), end=now)
+    pred = model.predict(b, wide)
+    cond = forecast_logic.conditions(pred, wide, model.p1_range(b))
+    return {"logged": forecast_log.record(b, pred, now, forecast_logic.flags(cond)), "scored": forecast_log.score()}
 
 
 def retrain() -> dict:

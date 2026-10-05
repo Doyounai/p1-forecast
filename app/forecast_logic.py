@@ -9,6 +9,7 @@ from __future__ import annotations
 import datetime as dt
 import math
 
+import numpy as np
 import pandas as pd
 
 from . import config
@@ -113,6 +114,78 @@ def advice_status(now_m: float, pred: dict | None, levels: dict | None = None) -
         return cur, "now"
     fut = status(pred["horizons"][config.WARNING_HORIZON]["ridge_m"], levels)
     return (fut, "forecast6") if _rank(fut) > _rank(cur) else (cur, "now")
+
+
+def level_controlled_series(wide: pd.DataFrame) -> pd.DataFrame:
+    """ทุกชั่วโมง: ระดับ P.1 เปลี่ยนมากแต่ปริมาณน้ำและต้นน้ำแทบไม่เปลี่ยนหรือไม่ (คอลัมน์ detected, change_m, q_pct, k)"""
+    w = wide.interpolate(limit=3, limit_area="inside")
+    p1, q = w["P1"], w["Q1"] if "Q1" in w else pd.Series(float("nan"), index=w.index)
+    out = pd.DataFrame({"detected": False, "change_m": float("nan"), "q_pct": float("nan"), "k": 0}, index=w.index)
+    for k in range(2, config.LC_WINDOW_HOURS + 1):
+        dp, dq = p1 - p1.shift(k), q / q.shift(k) - 1
+        n = k + config.LC_UPSTREAM_LEAD_HOURS + 1
+        dup = pd.concat([w[s].rolling(n).max() - w[s].rolling(n).min() for s in config.MODEL_UPSTREAM], axis=1).max(axis=1)
+        hit = (dp.abs() >= config.LC_MIN_CHANGE_M) & (dq.abs() < config.LC_MAX_DISCHARGE_PCT) & (dup < config.LC_MAX_UPSTREAM_M)
+        new = hit & (~out["detected"] | (dp.abs() > out["change_m"].abs()))   # เก็บช่วงที่ระดับเปลี่ยนมากสุด
+        out.loc[new, ["detected", "change_m", "q_pct", "k"]] = list(zip([True] * new.sum(), dp[new], dq[new], [k] * new.sum()))
+    return out
+
+
+def level_controlled(wide: pd.DataFrame) -> dict:
+    """ตรวจที่ชั่วโมงล่าสุดที่มีระดับ P.1 (ไม่มีปริมาณน้ำ = ตรวจไม่ได้ เช่นโหมดสาธิตที่ใช้ข้อมูลปี 2567)"""
+    p1 = wide["P1"].dropna() if "P1" in wide else pd.Series(dtype=float)
+    if p1.empty:
+        return {"detected": False, "reason": "no_data"}
+    t = p1.index[-1]
+    recent = wide.loc[t - pd.Timedelta(hours=config.LC_WINDOW_HOURS):t]
+    if "Q1" not in wide or recent["Q1"].notna().sum() < 2:
+        return {"detected": False, "reason": "no_discharge"}
+    r = level_controlled_series(wide.loc[:t]).iloc[-1]
+    if not r["detected"]:
+        return {"detected": False}
+    return {"detected": True, "at": t.isoformat(timespec="minutes"),
+            "since": (t - pd.Timedelta(hours=int(r["k"]))).isoformat(timespec="minutes"),
+            "change_m": round(float(r["change_m"]), 2), "discharge_change_pct": round(float(r["q_pct"]) * 100, 1)}
+
+
+def trend12_visible(now_m, upstream_rise_3h, lc_detected, levels: dict | None = None):
+    """กฎแสดงแนวโน้ม 12 ชม. ใช้ได้ทั้งค่าเดี่ยวและ Series (scripts/backtest.py ใช้กฎเดียวกันนี้)"""
+    L = levels or config.LEVELS
+    return ((np.asarray(now_m) >= L["watch"]) | (np.asarray(upstream_rise_3h) >= config.TREND12_UPSTREAM_RISE_M))         & ~np.asarray(lc_detected, dtype=bool)
+
+
+def trend12(pred: dict | None, wide: pd.DataFrame, lc: dict, levels: dict | None = None) -> tuple[dict | None, str | None]:
+    """แนวโน้ม 12 ชม. (ขึ้น/ทรง/ลง) หรือ None พร้อมเหตุผลที่ซ่อน: no_forecast / level_controlled / low_flow"""
+    if not pred or 12 not in pred["horizons"]:
+        return None, "no_forecast"
+    if lc.get("detected"):
+        return None, "level_controlled"
+    L = levels or config.LEVELS
+    t0 = pd.Timestamp(pred["issued_for"])
+    d = wide.loc[:t0].interpolate(limit=3, limit_area="inside")
+    rise = max((float(d[k].iloc[-1] - d[k].iloc[-4]) for k in config.MODEL_UPSTREAM
+                if len(d) >= 4 and pd.notna(d[k].iloc[-1]) and pd.notna(d[k].iloc[-4])), default=0.0)
+    if not trend12_visible(pred["now_m"], rise, False, L):
+        return None, "low_flow"
+    d12 = pred["horizons"][12]["ensemble_m"] - pred["now_m"]
+    return {"h": 12, "change_m": round(d12, 2),
+            "direction": "rising" if d12 > 0.15 else "falling" if d12 < -0.15 else "steady"}, None
+
+
+def conditions(pred: dict | None, wide: pd.DataFrame, p1_range=None) -> dict:
+    """สภาพตอนออกพยากรณ์ ใช้ทั้งใน API และบันทึกลง forecast_log.flags"""
+    lc = level_controlled(wide)
+    tr, reason = trend12(pred, wide, lc)
+    out = {"level_controlled": lc, "trend12": tr, "trend12_hidden_reason": reason}
+    if pred and p1_range:
+        out["out_of_train_range"] = not (p1_range[0] <= pred["now_m"] <= p1_range[1])
+    return out
+
+
+def flags(cond: dict) -> dict:
+    return {"level_controlled": bool(cond["level_controlled"].get("detected")),
+            "trend12_shown": cond["trend12"] is not None,
+            "out_of_train_range": bool(cond.get("out_of_train_range"))}
 
 
 def reliability(now_m: float, p1_range: tuple[float, float] | None, wide: pd.DataFrame,

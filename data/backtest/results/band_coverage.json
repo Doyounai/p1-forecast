@@ -1,0 +1,65 @@
+[
+ {
+  "set": "SEP26 S1",
+  "h": 1,
+  "n": 594,
+  "coverage": 0.773,
+  "mean_width_cm": 3.7
+ },
+ {
+  "set": "SEP26 S1",
+  "h": 3,
+  "n": 592,
+  "coverage": 0.799,
+  "mean_width_cm": 13.3
+ },
+ {
+  "set": "SEP26 S1",
+  "h": 6,
+  "n": 589,
+  "coverage": 0.791,
+  "mean_width_cm": 26.9
+ },
+ {
+  "set": "SEP26 S2",
+  "h": 1,
+  "n": 594,
+  "coverage": 0.875,
+  "mean_width_cm": 5.1
+ },
+ {
+  "set": "SEP26 S2",
+  "h": 3,
+  "n": 591,
+  "coverage": 0.887,
+  "mean_width_cm": 16.7
+ },
+ {
+  "set": "SEP26 S2",
+  "h": 6,
+  "n": 588,
+  "coverage": 0.895,
+  "mean_width_cm": 34.5
+ },
+ {
+  "set": "F24",
+  "h": 1,
+  "n": 165,
+  "coverage": 0.921,
+  "mean_width_cm": 4.9
+ },
+ {
+  "set": "F24",
+  "h": 3,
+  "n": 163,
+  "coverage": 0.902,
+  "mean_width_cm": 14.3
+ },
+ {
+  "set": "F24",
+  "h": 6,
+  "n": 160,
+  "coverage": 0.881,
+  "mean_width_cm": 33.0
+ }
+]

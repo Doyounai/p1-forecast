@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
 
 import numpy as np
 import pandas as pd
@@ -17,7 +18,8 @@ from . import config, features, store
 FMT = "%Y-%m-%d %H:%M"
 
 
-def record(bundle: dict, pred: dict | None, now: dt.datetime) -> int:
+def record(bundle: dict, pred: dict | None, now: dt.datetime, flags: dict | None = None) -> int:
+    """flags = สภาพตอนออกพยากรณ์ (เช่น level_controlled) เก็บเป็น JSON เพื่อแยกความแม่นตามสภาพ"""
     if not pred:
         return 0
     t0 = pd.Timestamp(pred["issued_for"]).to_pydatetime()
@@ -28,11 +30,12 @@ def record(bundle: dict, pred: dict | None, now: dt.datetime) -> int:
         for k in config.MODEL_KEYS:
             lo, hi = (p["lo_m"], p["hi_m"]) if k == "ensemble" else (p.get(f"{k}_lo_m"), p.get(f"{k}_hi_m"))
             rows.append((t0.strftime(FMT), int(h), k, (t0 + dt.timedelta(hours=int(h))).strftime(FMT),
-                         pred["now_m"], p[f"{k}_m"], lo, hi, bundle.get("trained_at"), now.strftime(FMT)))
+                         pred["now_m"], p[f"{k}_m"], lo, hi, bundle.get("trained_at"), now.strftime(FMT),
+                         bundle.get("version"), json.dumps(flags or {}, sort_keys=True)))
     with store.connect() as con:
         cur = con.executemany(
             "INSERT OR IGNORE INTO forecast_log (issued_for, h, model, target_t, now_m, pred_m, lo_m, hi_m, "
-            "trained_at, logged_at) VALUES (?,?,?,?,?,?,?,?,?,?)", rows)
+            "trained_at, logged_at, model_version, flags) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", rows)
         return cur.rowcount
 
 
@@ -82,6 +85,16 @@ def load(start: dt.datetime | None = None, end: dt.datetime | None = None) -> pd
         return pd.read_sql_query(q + " ORDER BY target_t, h, model", con, params=args)
 
 
+def _flag(df: pd.DataFrame, name: str) -> pd.Series:
+    """อ่าน flag จากคอลัมน์ JSON (แถวเก่าที่ไม่มี flags = None)"""
+    def one(v):
+        try:
+            return json.loads(v).get(name) if isinstance(v, str) else None
+        except ValueError:
+            return None
+    return df["flags"].map(one) if "flags" in df else pd.Series(None, index=df.index)
+
+
 def summary(now: dt.datetime, days: int, series_h: int = 6) -> dict:
     """ความแม่นของพยากรณ์ที่ค่าจริงมาถึงแล้ว ในช่วง days วันล่าสุด (นับตามเวลาเป้าหมาย)"""
     start = now - dt.timedelta(days=days)
@@ -96,9 +109,15 @@ def summary(now: dt.datetime, days: int, series_h: int = 6) -> dict:
         by_model = {k: _stats(d[d["model"] == k]) for k in config.MODEL_KEYS if (d["model"] == k).any()}
         ens = d[d["model"] == "ensemble"]
         persist = ens["now_m"] - ens["actual_m"]   # การทายว่าเท่าเดิม = ใช้ระดับตอนออกพยากรณ์
-        horizons.append({"h": h, "n": int(len(ens)), "models": by_model,
+        # แยกความแม่นช่วงที่ "ระดับเปลี่ยนแต่ปริมาณน้ำไม่เปลี่ยน" ออกจากช่วงปกติ (backtest: error ใหญ่สุดอยู่ในช่วงนี้)
+        lc = _flag(ens, "level_controlled") == True  # noqa: E712
+        by_condition = {"normal": _stats(ens[~lc])} if (~lc).any() else {}
+        if lc.any():
+            by_condition["level_controlled"] = _stats(ens[lc])
+        horizons.append({"h": h, "n": int(len(ens)), "models": by_model, "by_condition": by_condition,
                          "persistence_rmse_cm": _cm(np.sqrt(np.mean(np.square(persist)))) if len(ens) else None})
     d12 = done[(done["h"] == 12) & (done["model"] == "ensemble")]
+    d12 = d12[_flag(d12, "trend12_shown") != False]  # noqa: E712  นับเฉพาะครั้งที่แนวโน้มแสดงให้ผู้ใช้เห็นจริง
     trend12 = None
     if len(d12):
         hit = _direction(d12["pred_m"] - d12["now_m"]) == _direction(d12["actual_m"] - d12["now_m"])

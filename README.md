@@ -76,6 +76,15 @@ node tools/mylevel_check.mjs http://127.0.0.1:8000       # ตั้ง/ล้�
 node tools/pages_check.mjs http://127.0.0.1:8000 shots   # หน้าความแม่น, ข้อมูล, สถานะระบบ
 ```
 
+## Backtest
+
+```bash
+python scripts/backtest.py      # ~3 นาที เขียนผลลง data/backtest/results/summary.md
+```
+
+เทรนและทำนายด้วย `app.model` โดยตรง บนข้อมูลจริงที่โมเดลไม่เคยเห็น (ก.ย. 2569, `data/backtest/`) และน้ำท่วม 2567
+ต้องไม่แย่กว่า `data/backtest/results/baseline_summary.md` ทุกครั้งที่แก้โมเดล รายละเอียดและผลอยู่ใน `docs/experiment-findings.md`
+
 ## หน้าเว็บตอบอะไร
 
 ส่วนบนสุดของหน้า (ไม่ต้องเลื่อนบนมือถือ) ตอบ 4 คำถาม

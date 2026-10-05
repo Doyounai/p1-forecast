@@ -14,6 +14,7 @@ pip install -r requirements-dev.txt
 P1_DEMO=1 uvicorn app.main:app --port 8000 --reload   # โหมดสาธิต ข้อมูลน้ำท่วม 2567 ไม่ต้องต่อเน็ต
 uvicorn app.main:app --port 8000                       # โหมดจริง ดึง ThaiWater
 pytest -q                                              # ต้องผ่านทุกข้อก่อน commit
+python scripts/backtest.py                             # ~3 นาที ต้องไม่แย่กว่า data/backtest/results/baseline_summary.md เมื่อแตะโมเดลหรือ API พยากรณ์
 node tools/screens.mjs http://127.0.0.1:8000 shots     # ภาพหน้าจอ + ตรวจ console error (ต้อง cd tools && npm install ครั้งแรก)
 node tools/pages_check.mjs http://127.0.0.1:8000 shots # หน้ารอง: accuracy, data, admin
 python -m app.cli {backfill|poll|train|info}
@@ -25,10 +26,10 @@ python -m app.cli {backfill|poll|train|info}
 
 - `app/config.py` ค่าคงที่ทั้งหมด: สถานี, datum, เกณฑ์ระดับน้ำ, horizon, env vars (`P1_*`)
 - `app/thaiwater.py` client + parser ของ `waterlevel_load` และ `waterlevel_graph`
-- `app/store.py` SQLite (`obs`, `meta`) และ `hourly()` ที่คืน DataFrame รายชั่วโมง คอลัมน์ P1/P67/P21 หน่วย ม.รทก.
+- `app/store.py` SQLite (`obs`, `meta`, `forecast_log` + migration คอลัมน์ใหม่ใน `MIGRATIONS`) และ `hourly()` ที่คืน DataFrame รายชั่วโมง คอลัมน์ P1/P67/P21 (ม.รทก.) และ Q1 (ปริมาณน้ำ P.1, seed 2567 ไม่มี) ตัดค่าที่ `config.plausible` ไม่ผ่าน
 - `app/features.py` features ของโมเดล ต้องตรงกับในรายงานการทดลอง
-- `app/model.py` Ridge-delta + GBM-delta, band จาก blocked CV, `predict()`, `p1_range` (ช่วงระดับที่เคยเห็นตอนเทรน)
-- `app/forecast_logic.py` ฟังก์ชันล้วนที่ตีความพยากรณ์: `next_threshold`, `my_level`, `advice_status`, `reliability`
+- `app/model.py` Ridge-delta + GBM-delta, band จาก blocked CV: `fit_horizon()`, `train()`, `predict()` (แถวล่าสุด), `predict_frame()` (ทุกแถว ใช้ใน backtest), `p1_range`, `MODEL_VERSION` (เปลี่ยนทุกครั้งที่วิธีพยากรณ์เปลี่ยน)
+- `app/forecast_logic.py` ฟังก์ชันล้วนที่ตีความพยากรณ์: `next_threshold`, `my_level`, `advice_status`, `reliability`, `level_controlled` (ระดับเปลี่ยน ปริมาณน้ำไม่เปลี่ยน), `trend12` / `trend12_visible`, `conditions` / `flags` (บันทึกลง forecast_log)
 - `app/collector.py` thread เบื้องหลัง: seed → backfill 1 ปี → poll ทุก 10 นาที (+ บันทึกพยากรณ์และเติมค่าจริง) → retrain ทุก 24 ชม.
   ได้ 429 = ถอยระยะ poll เป็น 2 เท่า (`next_wait`) ไม่เกิน 60 นาที; ผลทุกรอบเก็บใน `meta.poll_log`, นับ 429 ใน `meta.http_429`
 - `app/forecast_log.py` ตาราง `forecast_log`: `record()` เก็บพยากรณ์ครั้งแรกของแต่ละ issued_for (ไม่ทับ, ข้ามถ้าช้ากว่า 3 ชม.), `score()` เติมค่าจริงจากค่าที่วัดได้เท่านั้น, `summary()` สรุปความแม่น
@@ -39,6 +40,7 @@ python -m app.cli {backfill|poll|train|info}
 - `static/accuracy.html`, `static/data.html`, `static/admin.html` หน้ารอง (ความแม่นย้อนหลัง, ข้อมูลสำหรับนักวิจัย, สถานะระบบ) ใช้ CSS และ i18n ชุดเดียวกัน
 - `tools/` สคริปต์ Playwright (`screens.mjs`, `mylevel_check.mjs`, `pages_check.mjs`) ไม่ใช่ส่วนของหน้าเว็บ
 - `tests/conftest.py` บังคับทุก test ใช้ฐานข้อมูลและโมเดลชั่วคราว ห้ามแตะ `data/` จริง
+- `scripts/backtest.py` backtest มาตรฐาน เรียก `app.model` โดยตรง ชุด SEP26 (S1/S2/S3, S2 = เกณฑ์หลัก) และ F24; ข้อมูลอยู่ที่ `data/backtest/`
 - `data/seed/` ข้อมูลรายชั่วโมงน้ำท่วม 22 ก.ย.–9 ต.ค. 2567 ของ 3 สถานี (ห้ามแก้)
 - `tests/` ใช้ payload จริงจาก ThaiWater ใน `tests/fixtures/` และ mock เน็ตทั้งหมด
 
@@ -52,7 +54,9 @@ python -m app.cli {backfill|poll|train|info}
 **โมเดลและการแสดงผล** (เหตุผลอยู่ใน experiment-findings)
 - ทำนาย "การเปลี่ยนแปลง" ของระดับน้ำเสมอ ห้ามเปลี่ยนเป็นทำนายระดับตรง ๆ
 - ตัวเลขที่แสดง = M7 ensemble ส่วนการเตือนที่ 6 ชม. ใช้ M4 Ridge-delta
-- 12 ชม. แสดงเป็นแนวโน้ม (ขึ้น/ทรง/ลง) เท่านั้น ห้ามแสดงเป็นตัวเลข
+- 12 ชม. แสดงเป็นแนวโน้ม (ขึ้น/ทรง/ลง) เท่านั้น ห้ามแสดงเป็นตัวเลข และแสดงเฉพาะเมื่อ `trend12_visible` (P.1 ≥ เฝ้าระวัง หรือต้นน้ำขึ้นเร็ว และไม่ใช่ level_controlled) ถ้าซ่อนต้องส่ง `trend12_hidden_reason` ห้ามแสดงว่า "ทรงตัว" แทน
+- `level_controlled` ใช้อธิบายว่าระดับที่เพิ่งเปลี่ยนอาจมาจากการบริหารจัดการน้ำ ห้ามบอกว่าเป็นการเปิด/ปิดประตูน้ำ และ backtest ไม่พบว่าพยากรณ์ 6 ชม. แย่ลงหลังติดธง จึงไม่ใช้ลดความเชื่อถือ
+- ปริมาณน้ำ P.1 ไม่ใช่ feature ของโมเดล (ทดลองแล้วไม่ช่วย ดู experiment-findings) GBM เทรนไม่ได้ถ้ามีคอลัมน์ว่างทั้งหมด
 - โมเดลเทรน horizon 1–6 และ 12 ชม. (`config.HORIZONS`) โดย 2/4/5 ชม. ใช้เฉพาะตารางเทียบโมเดลท้ายหน้า และไม่อยู่ในรายงานการทดลอง ต้องบอกผู้ใช้เสมอ
 - bundle ที่ horizon ไม่ตรง `config.HORIZONS` หรือไม่มี `bands` รายโมเดล ระบบจะเทรนใหม่ตอนเปิด (`model.is_current`)
 - สีสถานะของตัวเลขพยากรณ์คิดจากค่าที่ปัดแล้ว (เห็น 3.70 = สีวิกฤต)
@@ -70,6 +74,7 @@ python -m app.cli {backfill|poll|train|info}
 
 **ThaiWater**
 - endpoint ไม่เป็นทางการ ห้าม poll ถี่กว่า 10 นาที และต้องส่ง User-Agent กับ Referer ตาม `config.HTTP_HEADERS`
+- ThaiWater ส่งค่าผิดพลาดได้ (เคยมี P.21 = 493.70 ทำให้ CV ของ Ridge พัง) ทุกค่าต้องผ่าน `config.plausible` ก่อนใช้
 - เมื่อได้ 429 หรือรูปแบบข้อมูลเปลี่ยน ต้องจัดการให้ระบบยังทำงานต่อได้ และบันทึกลง `meta`
 
 ## สไตล์หน้าเว็บ
@@ -94,3 +99,4 @@ python -m app.cli {backfill|poll|train|info}
 สถานี P.75/P.92/P.20 ในระบบ (หา id แล้ว ดู data-sources), กราฟหลายช่วงเวลา, ภาษาอังกฤษ, ธีมมืด, PWA
 
 แผนงานยกระดับหน้าเว็บทั้งหมดอยู่ที่ `prompts/02-ui-upgrade.md` (เฟส 1 เสร็จแล้ว: ส่วนเหนือขอบจอ)
+ฉบับต่อยอดที่ใช้ field `level_controlled` และ `trend12_hidden_reason` อยู่ที่ `prompts/03-model-fixes.md` (ชื่อไฟล์ไม่ตรงเนื้อหา: เป็นพรอมต์ UI)

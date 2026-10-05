@@ -24,6 +24,8 @@ from . import config, features
 
 log = logging.getLogger(__name__)
 MIN_SAMPLES = 150
+# เปลี่ยนทุกครั้งที่วิธีพยากรณ์เปลี่ยน เพื่อแยกความแม่นของแต่ละรุ่นใน forecast_log
+MODEL_VERSION = "2026-10-05.1"
 N_FOLDS = 4
 
 
@@ -73,33 +75,60 @@ def _band(res: pd.Series) -> tuple[float, float]:
     return min(float(res.quantile(0.05)), -spread), max(float(res.quantile(0.95)), spread)
 
 
-def train(wide: pd.DataFrame) -> dict:
+def fit_horizon(X: pd.DataFrame, y: pd.Series, h: int) -> dict:
+    """fit Ridge + GBM ของ horizon เดียว พร้อมช่วงความไม่แน่นอนจาก blocked CV (ใช้ทั้งแอปและ scripts/backtest.py)"""
+    oof = _blocked_oof(X, y, h)
+    if len(oof):
+        res = {"ridge": oof["y"] - oof["ridge"], "gbm": oof["y"] - oof["gbm"],
+               "ensemble": oof["y"] - (oof["ridge"] + oof["gbm"]) / 2}
+        bands = {k: _band(r) for k, r in res.items()}
+        metrics = {"rmse_cm_ensemble": _rmse_cm(res["ensemble"]), "rmse_cm_ridge": _rmse_cm(res["ridge"]),
+                   "rmse_cm_gbm": _rmse_cm(res["gbm"]), "rmse_cm_persistence": _rmse_cm(oof["y"]),
+                   "n_oof": int(len(oof))}
+    else:
+        bands, metrics = {k: (-0.1 * h, 0.1 * h) for k in config.MODEL_KEYS}, {}
+    return {"ridge": _ridge().fit(X, y), "gbm": _gbm().fit(X, y),
+            "band": bands["ensemble"], "bands": bands, "metrics": metrics, "n_train": int(len(X)),
+            "train_range": [str(X.index.min()), str(X.index.max())]}
+
+
+def train(wide: pd.DataFrame, horizons: list[int] | None = None) -> dict:
     now_th = dt.datetime.now(ZoneInfo("Asia/Bangkok")).replace(tzinfo=None)
     bundle = {"trained_at": now_th.isoformat(timespec="minutes"), "horizons": {},
-              "feature_columns": features.FEATURE_COLUMNS}
-    for h in config.HORIZONS:
+              "feature_columns": features.FEATURE_COLUMNS, "version": MODEL_VERSION}
+    for h in horizons or config.HORIZONS:
         X, y = _dataset(wide, h)
         if len(X) < MIN_SAMPLES:
             raise RuntimeError(f"ข้อมูลไม่พอสำหรับ h={h} ({len(X)} ชั่วโมง ต้องการอย่างน้อย {MIN_SAMPLES})")
         if "p1_range" not in bundle:   # ช่วงระดับ P.1 ที่โมเดลเคยเห็น ใช้บอกผู้ใช้เมื่อน้ำอยู่นอกช่วงนี้
             bundle["p1_range"] = (float(X["p1"].min()), float(X["p1"].max()))
-        oof = _blocked_oof(X, y, h)
-        if len(oof):
-            res = {"ridge": oof["y"] - oof["ridge"], "gbm": oof["y"] - oof["gbm"],
-                   "ensemble": oof["y"] - (oof["ridge"] + oof["gbm"]) / 2}
-            bands = {k: _band(r) for k, r in res.items()}
-            metrics = {"rmse_cm_ensemble": _rmse_cm(res["ensemble"]), "rmse_cm_ridge": _rmse_cm(res["ridge"]),
-                       "rmse_cm_gbm": _rmse_cm(res["gbm"]), "rmse_cm_persistence": _rmse_cm(oof["y"]),
-                       "n_oof": int(len(oof))}
-        else:
-            bands, metrics = {k: (-0.1 * h, 0.1 * h) for k in config.MODEL_KEYS}, {}
-        bundle["horizons"][h] = {
-            "ridge": _ridge().fit(X, y), "gbm": _gbm().fit(X, y),
-            "band": bands["ensemble"], "bands": bands, "metrics": metrics, "n_train": int(len(X)),
-            "train_range": [str(X.index.min()), str(X.index.max())],
-        }
-        log.info("trained h=%d on %d hours %s", h, len(X), metrics)
+        bundle["horizons"][h] = fit_horizon(X, y, h)
+        log.info("trained h=%d on %d hours %s", h, len(X), bundle["horizons"][h]["metrics"])
     return bundle
+
+
+def _predict_rows(bundle: dict, X: pd.DataFrame, horizons=None) -> dict[int, pd.DataFrame]:
+    """ทำนายทุกแถวของ X (ต้องมี feature ครบ) คืน {h: DataFrame} ระดับตามไม้วัด P.1"""
+    now = X["p1"]
+    out = {}
+    for h, m in bundle["horizons"].items():
+        if horizons is not None and h not in horizons:
+            continue
+        r, g = m["ridge"].predict(X), m["gbm"].predict(X)
+        df = pd.DataFrame({"now": now, "ridge": now + r, "gbm": now + g}, index=X.index)
+        df["ensemble"] = now + (r + g) / 2
+        df["lo"], df["hi"] = df["ensemble"] + m["band"][0], df["ensemble"] + m["band"][1]
+        if "bands" in m:   # ช่วงของแต่ละโมเดล (bundle รุ่นเก่าไม่มี)
+            for k in ("ridge", "gbm"):
+                df[f"{k}_lo"], df[f"{k}_hi"] = df[k] + m["bands"][k][0], df[k] + m["bands"][k][1]
+        out[int(h)] = df
+    return out
+
+
+def predict_frame(bundle: dict, wide: pd.DataFrame, horizons=None) -> dict[int, pd.DataFrame]:
+    """ทำนายทุกชั่วโมงที่มี feature ครบ (ใช้ใน backtest) แถวที่ feature ไม่ครบไม่ถูกทำนาย เหมือนแอปจริง"""
+    X = features.build(wide)
+    return _predict_rows(bundle, X[X.notna().all(axis=1)], horizons)
 
 
 def save(bundle: dict) -> None:
@@ -132,19 +161,15 @@ def predict(bundle: dict, wide: pd.DataFrame) -> dict | None:
     if not ok.any():
         return None
     t0 = X.index[ok][-1]
-    x = X.loc[[t0]]
-    now = float(x["p1"].iloc[0])
-    out = {"issued_for": t0, "now_m": now, "horizons": {}}
-    for h, m in bundle["horizons"].items():
-        r = float(m["ridge"].predict(x)[0])
-        g = float(m["gbm"].predict(x)[0])
-        ens = now + (r + g) / 2
-        lo, hi = m["band"]
-        p = {"ensemble_m": ens, "ridge_m": now + r, "gbm_m": now + g, "lo_m": ens + lo, "hi_m": ens + hi}
-        for k, v in (("ridge", now + r), ("gbm", now + g)):   # ช่วงของแต่ละโมเดล (bundle รุ่นเก่าไม่มี)
-            if "bands" in m:
-                p[f"{k}_lo_m"], p[f"{k}_hi_m"] = v + m["bands"][k][0], v + m["bands"][k][1]
-        out["horizons"][int(h)] = p
+    rows = _predict_rows(bundle, X.loc[[t0]])
+    out = {"issued_for": t0, "now_m": float(X.at[t0, "p1"]), "horizons": {}}
+    for h, df in rows.items():
+        r = df.iloc[0]
+        p = {"ensemble_m": r["ensemble"], "ridge_m": r["ridge"], "gbm_m": r["gbm"], "lo_m": r["lo"], "hi_m": r["hi"]}
+        for k in ("ridge", "gbm"):
+            if f"{k}_lo" in df:
+                p[f"{k}_lo_m"], p[f"{k}_hi_m"] = r[f"{k}_lo"], r[f"{k}_hi"]
+        out["horizons"][h] = {k: float(v) for k, v in p.items()}
     return out
 
 

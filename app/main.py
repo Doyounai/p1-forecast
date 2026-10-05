@@ -110,7 +110,7 @@ def forecast(at: str | None = Query(None, description="เฉพาะโหม�
     age_h = (now - last_t.to_pydatetime()).total_seconds() / 3600
     pred = model.predict(bundle, wide)
 
-    fc, warning, trend = [], None, None
+    fc, warning = [], None
     if pred:
         t0 = pred["issued_for"]
         for h in config.NUMERIC_HORIZONS:
@@ -119,8 +119,6 @@ def forecast(at: str | None = Query(None, description="เฉพาะโหม�
             fc.append({"h": h, "t": (t0 + pd.Timedelta(hours=h)).isoformat(), "value_m": _r(p["ensemble_m"]),
                        "lo_m": _r(p["lo_m"]), "hi_m": _r(p["hi_m"]), "status": _status(_r(p["ensemble_m"])),
                        "rmse_cm": m.get("rmse_cm_ensemble")})
-        d12 = pred["horizons"][12]["ensemble_m"] - pred["now_m"]
-        trend = {"h": 12, "change_m": _r(d12), "direction": "rising" if d12 > 0.15 else "falling" if d12 < -0.15 else "steady"}
         crit = config.LEVELS["critical"]
         w = pred["horizons"][config.WARNING_HORIZON]
         if pred["now_m"] < crit:
@@ -133,6 +131,7 @@ def forecast(at: str | None = Query(None, description="เฉพาะโหม�
     fetch = store.get_meta("last_fetch")
     stale = (not config.DEMO) and age_h > config.STALE_AFTER_HOURS
     adv, basis = forecast_logic.advice_status(last_v, pred)
+    cond = forecast_logic.conditions(pred, wide)
     return {
         "mode": "demo" if config.DEMO else "live",
         "now": now.isoformat(timespec="minutes"),
@@ -142,7 +141,9 @@ def forecast(at: str | None = Query(None, description="เฉพาะโหม�
                "stale": stale,
                "discharge_m3s": None if config.DEMO else _r(store.latest_discharge().get("P1"), 1)},
         "forecast": fc,
-        "trend12": trend,
+        "trend12": cond["trend12"],
+        "trend12_hidden_reason": cond["trend12_hidden_reason"],
+        "level_controlled": cond["level_controlled"],
         "warning": warning,
         "next_threshold": forecast_logic.next_threshold(pred, now=now),
         "my_level": forecast_logic.my_level(pred, my, last_v, now=now) if my is not None else None,

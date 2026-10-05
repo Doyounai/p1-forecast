@@ -40,12 +40,30 @@ CREATE INDEX IF NOT EXISTS forecast_log_target ON forecast_log (target_t);
 """
 
 
+# คอลัมน์ที่เพิ่มทีหลัง: ฐานข้อมูลเก่าจะถูกเพิ่มคอลัมน์ให้เองตอนเปิด (ไม่ลบข้อมูลเดิม)
+MIGRATIONS = {
+    "forecast_log": {
+        "model_version": "TEXT",   # รุ่นของวิธีพยากรณ์ (model.MODEL_VERSION) ใช้แยกความแม่นก่อน/หลังแก้โมเดล
+        "flags": "TEXT",           # JSON ของสภาพตอนออกพยากรณ์ เช่น {"level_controlled": true}
+    },
+}
+
+
+def _migrate(con) -> None:
+    for table, cols in MIGRATIONS.items():
+        have = {r[1] for r in con.execute(f"PRAGMA table_info({table})")}
+        for col, typ in cols.items():
+            if col not in have:
+                con.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
+
+
 @contextmanager
 def connect():
     config.DATA_DIR.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(config.DB_PATH)
     try:
         con.executescript(SCHEMA)
+        _migrate(con)
         yield con
         con.commit()
     finally:
@@ -71,18 +89,31 @@ def load_seed() -> list[dict]:
              "level_msl": float(r.level_msl)} for r in df.itertuples()]
 
 
+# คอลัมน์ของ hourly(): ระดับน้ำทุกสถานี (ม.รทก.) + Q1 = ปริมาณน้ำ P.1 (m³/s, ข้อมูล seed ปี 2567 ไม่มี)
+# Q1 ใช้ตรวจ "ระดับเปลี่ยน ปริมาณน้ำไม่เปลี่ยน" เท่านั้น ไม่ใช่ feature ของโมเดล (backtest: ไม่ช่วย)
+HOURLY_COLUMNS = list(config.STATIONS) + ["Q1"]
+
+
 def _to_hourly(df: pd.DataFrame) -> pd.DataFrame:
-    """แปลงเป็นตารางรายชั่วโมง คอลัมน์ P1/P67/P21 (ม.รทก.) ใช้ค่าที่ตรงชั่วโมงก่อน"""
+    """แปลงเป็นตารางรายชั่วโมง ใช้ค่าที่ตรงชั่วโมงก่อน"""
     if df.empty:
-        return pd.DataFrame(columns=list(config.STATIONS))
+        return pd.DataFrame(columns=HOURLY_COLUMNS)
     df = df.copy()
+    # ค่าที่เป็นไปไม่ได้ที่เข้าฐานข้อมูลไปก่อนมีการตรวจ (เช่น P.21 = 493.70 เมื่อ 4 ก.ค. 2569) ไม่ใช้
+    ok = [config.plausible(s, v) for s, v in zip(df["station_id"], df["level_msl"])]
+    df = df[ok]
+    if df.empty:
+        return pd.DataFrame(columns=HOURLY_COLUMNS)
     df["t"] = pd.to_datetime(df["t"])
     df["h"] = df["t"].dt.floor("h")
     df["off"] = (df["t"] - df["h"]).dt.total_seconds()
     df = df.sort_values("off").groupby(["station_id", "h"], as_index=False).first()
     df["key"] = df["station_id"].map(config.ID_TO_KEY)
     wide = df.pivot(index="h", columns="key", values="level_msl").sort_index()
-    wide = wide.reindex(columns=list(config.STATIONS))
+    if "discharge" in df:
+        p1 = df[df["station_id"] == config.STATIONS["P1"]["id"]].set_index("h")["discharge"]
+        wide["Q1"] = p1.reindex(wide.index)
+    wide = wide.reindex(columns=HOURLY_COLUMNS).astype(float)
     if len(wide):
         wide = wide.reindex(pd.date_range(wide.index.min(), wide.index.max(), freq="h"))
     wide.index.name = "t"
@@ -90,7 +121,7 @@ def _to_hourly(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def hourly(start: dt.datetime | None = None, end: dt.datetime | None = None) -> pd.DataFrame:
-    q, args = "SELECT station_id, t, level_msl FROM obs WHERE 1=1", []
+    q, args = "SELECT station_id, t, level_msl, discharge FROM obs WHERE 1=1", []
     if start is not None:
         q += " AND t >= ?"; args.append(start.strftime("%Y-%m-%d %H:%M"))
     if end is not None:

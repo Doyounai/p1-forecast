@@ -64,7 +64,9 @@ export function renderOutlook(d) {
   setLine("my-status", myText, "my-status");
 
   const tr = d.trend12;
-  $("trend").textContent = tr ? t(`fc.trend.${tr.direction}`) : "";
+  // แนวโน้มที่ถูกซ่อน: บอกเหตุผลสั้น ๆ ห้ามแสดงว่า "ทรงตัว" แทน (no_forecast ไม่ต้องบอก มีข้อความอื่นอยู่แล้ว)
+  const hidden = !tr && ["low_flow", "level_controlled"].includes(d.trend12_hidden_reason);
+  $("trend").textContent = tr ? t(`fc.trend.${tr.direction}`) : hidden ? t(`fc.trend_hidden.${d.trend12_hidden_reason}`) : "";
   $("trend-note").textContent = tr ? t("fc.trend_note") : "";
 
   // ความแม่นต่ำ: บอกเหตุผลทุกข้อที่ backend ส่งมา
