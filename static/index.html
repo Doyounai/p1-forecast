@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>น้ำปิงที่สะพานนวรัฐ — พยากรณ์ระดับน้ำ P.1</title>
+  <meta name="description" content="ระดับน้ำแม่น้ำปิงที่สถานี P.1 สะพานนวรัฐ เชียงใหม่ พร้อมพยากรณ์ล่วงหน้า 1–6 ชั่วโมง">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='5' y='1' width='6' height='14' fill='%23fff' stroke='%23C23A2B'/><rect x='5' y='9' width='6' height='6' fill='%232C6E7A'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="demo-bar" class="demo-bar" hidden>
+    <div class="wrap demo-inner">
+      <p><strong>โหมดสาธิต</strong> ย้อนดูน้ำท่วมเชียงใหม่ ก.ย.–ต.ค. 2567 ด้วยข้อมูลจริง</p>
+      <div class="demo-controls">
+        <button id="demo-play" type="button" aria-pressed="false">เล่น</button>
+        <label class="sr-only" for="demo-slider">เลือกเวลา</label>
+        <input id="demo-slider" type="range" min="0" max="0" step="1" value="0">
+        <output id="demo-time" for="demo-slider"></output>
+      </div>
+    </div>
+  </div>
+
+  <header class="wrap masthead">
+    <h1>น้ำปิงที่สะพานนวรัฐ</h1>
+    <p class="sub">สถานี P.1 อำเภอเมืองเชียงใหม่ <span id="updated"></span></p>
+  </header>
+
+  <main class="wrap">
+    <div id="alert" class="alert" role="status" hidden></div>
+
+    <section class="now" aria-labelledby="now-title">
+      <figure class="gauge" aria-describedby="gauge-caption">
+        <svg id="gauge" viewBox="0 0 220 560" role="img" aria-label="ไม้วัดระดับน้ำ P.1"></svg>
+        <figcaption id="gauge-caption" class="sr-only"></figcaption>
+      </figure>
+
+      <div class="readout">
+        <h2 id="now-title" class="sr-only">ระดับน้ำตอนนี้</h2>
+        <p class="level"><span id="level-value">–</span><span class="unit">ม.</span></p>
+        <p id="level-note" class="level-note">กำลังโหลดข้อมูล</p>
+        <p id="discharge" class="small"></p>
+      </div>
+
+      <div class="next">
+        <h2 class="block-title">อีกไม่กี่ชั่วโมงข้างหน้า</h2>
+        <ol id="forecast" class="forecast"></ol>
+        <p id="trend" class="trend"></p>
+      </div>
+    </section>
+
+    <section class="chart-block" aria-labelledby="chart-title">
+      <h2 id="chart-title" class="block-title">3 วันที่ผ่านมาและ 6 ชั่วโมงข้างหน้า</h2>
+      <svg id="chart" viewBox="0 0 900 340" preserveAspectRatio="xMinYMin meet" role="img" aria-label="กราฟระดับน้ำ P.1 ย้อนหลัง 72 ชั่วโมงพร้อมพยากรณ์"></svg>
+      <p class="legend">
+        <span class="key key-obs"></span>ระดับที่วัดได้
+        <span class="key key-fc"></span>พยากรณ์
+        <span class="key key-band"></span>ช่วงที่น่าจะเป็น
+      </p>
+    </section>
+
+    <section class="upstream" aria-labelledby="up-title">
+      <h2 id="up-title" class="block-title">ต้นน้ำที่ไหลมาถึงตัวเมือง</h2>
+      <div id="upstream" class="up-list"></div>
+    </section>
+
+    <section class="about" aria-labelledby="about-title">
+      <h2 id="about-title" class="block-title">ตัวเลขนี้มาจากไหน</h2>
+      <p>ระดับน้ำจริงมาจาก <a href="https://www.thaiwater.net/" rel="noopener">ThaiWater</a> ของสถาบันสารสนเทศทรัพยากรน้ำ (สสน.) ดึงใหม่ทุก 10 นาที
+        ตัวเลขพยากรณ์มาจากโมเดลที่ทำนายว่าระดับน้ำจะเปลี่ยนไปเท่าไร โดยดูจากแนวโน้มที่ P.1 และระดับน้ำที่ P.67 กับ P.21</p>
+      <p id="model-info" class="small"></p>
+      <p class="disclaimer">นี่คือต้นแบบงานวิจัย ไม่ใช่ระบบเตือนภัยทางการ ถ้าน้ำใกล้ถึงบ้าน ให้ทำตามประกาศของจังหวัดและกรมชลประทาน
+        สายด่วนกรมชลประทาน 1460 และ ปภ. 1784</p>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+services:
+  p1-forecast:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - p1data:/app/data/live      # ฐานข้อมูลและโมเดลอยู่รอดเมื่อ rebuild
+    environment:
+      P1_DATA_DIR: /app/data/live
+    restart: unless-stopped
+volumes:
+  p1data:

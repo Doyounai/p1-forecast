@@ -1,0 +1,427 @@
+{
+ "waterlevel_data": {
+  "result": "OK",
+  "data": [
+   {
+    "id": 1313897176,
+    "waterlevel_datetime": "2026-09-27 16:00",
+    "waterlevel_m": null,
+    "waterlevel_msl": "315.83",
+    "waterlevel_msl_previous": "315.84",
+    "flow_rate": null,
+    "discharge": "40.95",
+    "storage_percent": "51.64",
+    "sort_order": null,
+    "station_type": "tele_waterlevel",
+    "situation_level": 3,
+    "agency": {
+     "id": 12,
+     "agency_name": {
+      "th": "กรมชลประทาน ",
+      "en": "Royal Irrigation Department",
+      "jp": ""
+     },
+     "agency_shortname": {
+      "th": "ชป.",
+      "en": "RID",
+      "jp": ""
+     }
+    },
+    "basin": {
+     "id": 6,
+     "basin_code": 6,
+     "basin_name": {
+      "th": "ลุ่มน้ำปิง",
+      "en": "Ping Basin"
+     }
+    },
+    "station": {
+     "id": 3247,
+     "tele_station_name": {
+      "th": "บ้านแม่แต"
+     },
+     "tele_station_lat": 19.00985,
+     "tele_station_long": 98.95974,
+     "tele_station_oldcode": "P.67",
+     "tele_station_type": "tele_waterlevel",
+     "left_bank": 642.278993,
+     "right_bank": 642.1749930000001,
+     "min_bank": 318.93,
+     "ground_level": 312.52,
+     "offset": 315.929993,
+     "sub_basin_id": 160,
+     "agency_id": 12,
+     "geocode_id": 4767,
+     "hydro_id": 1,
+     "qmax": 380.200012,
+     "is_key_station": true,
+     "warning_level_m": null,
+     "critical_level_m": null,
+     "critical_level_msl": null
+    },
+    "geocode": {
+     "area_code": "3",
+     "area_name": {
+      "th": "ภาคเหนือ",
+      "en": "North"
+     },
+     "amphoe_code": "07",
+     "amphoe_name": {
+      "th": "แม่ริม",
+      "en": "Mae Rim District"
+     },
+     "tumbon_code": "04",
+     "tumbon_name": {
+      "th": "ขี้เหล็ก",
+      "en": "Khi Lek"
+     },
+     "province_code": "50",
+     "province_name": {
+      "th": "เชียงใหม่",
+      "en": "Chiang Mai"
+     }
+    },
+    "diff_wl_bank": "3.10",
+    "diff_wl_bank_text": "ต่ำกว่าตลิ่ง (ม.)",
+    "river_gid": 28899,
+    "river_name": "แม่น้ำปิง"
+   },
+   {
+    "id": 1313897172,
+    "waterlevel_datetime": "2026-09-27 16:00",
+    "waterlevel_m": null,
+    "waterlevel_msl": "301.68",
+    "waterlevel_msl_previous": "301.70",
+    "flow_rate": null,
+    "discharge": "89.12",
+    "storage_percent": "49.09",
+    "sort_order": null,
+    "station_type": "tele_waterlevel",
+    "situation_level": 3,
+    "agency": {
+     "id": 12,
+     "agency_name": {
+      "th": "กรมชลประทาน ",
+      "en": "Royal Irrigation Department",
+      "jp": ""
+     },
+     "agency_shortname": {
+      "th": "ชป.",
+      "en": "RID",
+      "jp": ""
+     }
+    },
+    "basin": {
+     "id": 6,
+     "basin_code": 6,
+     "basin_name": {
+      "th": "ลุ่มน้ำปิง",
+      "en": "Ping Basin"
+     }
+    },
+    "station": {
+     "id": 3226,
+     "tele_station_name": {
+      "th": "สะพานนวรัฐ"
+     },
+     "tele_station_lat": 18.786961,
+     "tele_station_long": 99.005089,
+     "tele_station_oldcode": "P.1",
+     "tele_station_type": "tele_waterlevel",
+     "left_bank": 608.356,
+     "right_bank": 608.288,
+     "min_bank": 304.2,
+     "ground_level": 299.25,
+     "offset": 300.5,
+     "sub_basin_id": 162,
+     "agency_id": 12,
+     "geocode_id": 4697,
+     "hydro_id": 1,
+     "qmax": 425,
+     "is_key_station": true,
+     "warning_level_m": null,
+     "critical_level_m": 3.7,
+     "critical_level_msl": 304.2
+    },
+    "geocode": {
+     "area_code": "3",
+     "area_name": {
+      "th": "ภาคเหนือ",
+      "en": "North"
+     },
+     "amphoe_code": "01",
+     "amphoe_name": {
+      "th": "เมืองเชียงใหม่",
+      "en": "Mueang Chiang Mai District"
+     },
+     "tumbon_code": "06",
+     "tumbon_name": {
+      "th": "วัดเกต",
+      "en": "Wat Ket"
+     },
+     "province_code": "50",
+     "province_name": {
+      "th": "เชียงใหม่",
+      "en": "Chiang Mai"
+     }
+    },
+    "diff_wl_bank": "2.52",
+    "diff_wl_bank_text": "ต่ำกว่าตลิ่ง (ม.)",
+    "river_gid": 39482,
+    "river_name": "แม่น้ำปิง"
+   },
+   {
+    "id": 1313897175,
+    "waterlevel_datetime": "2026-09-27 16:00",
+    "waterlevel_m": null,
+    "waterlevel_msl": "321.01",
+    "waterlevel_msl_previous": "321.02",
+    "flow_rate": null,
+    "discharge": "8.91",
+    "storage_percent": "46.22",
+    "sort_order": null,
+    "station_type": "tele_waterlevel",
+    "situation_level": 3,
+    "agency": {
+     "id": 12,
+     "agency_name": {
+      "th": "กรมชลประทาน ",
+      "en": "Royal Irrigation Department",
+      "jp": ""
+     },
+     "agency_shortname": {
+      "th": "ชป.",
+      "en": "RID",
+      "jp": ""
+     }
+    },
+    "basin": {
+     "id": 6,
+     "basin_code": 6,
+     "basin_name": {
+      "th": "ลุ่มน้ำปิง",
+      "en": "Ping Basin"
+     }
+    },
+    "station": {
+     "id": 3240,
+     "tele_station_name": {
+      "th": "บ้านริมใต้"
+     },
+     "tele_station_lat": 18.92746,
+     "tele_station_long": 98.939774,
+     "tele_station_oldcode": "P.21",
+     "tele_station_type": "tele_waterlevel",
+     "left_bank": 644.6300120000001,
+     "right_bank": 644.677012,
+     "min_bank": 323.5,
+     "ground_level": 318.87,
+     "offset": 319.700012,
+     "sub_basin_id": 161,
+     "agency_id": 12,
+     "geocode_id": 4765,
+     "hydro_id": 1,
+     "qmax": 50.650002,
+     "is_key_station": false,
+     "warning_level_m": null,
+     "critical_level_m": null,
+     "critical_level_msl": null
+    },
+    "geocode": {
+     "area_code": "3",
+     "area_name": {
+      "th": "ภาคเหนือ",
+      "en": "North"
+     },
+     "amphoe_code": "07",
+     "amphoe_name": {
+      "th": "แม่ริม",
+      "en": "Mae Rim District"
+     },
+     "tumbon_code": "02",
+     "tumbon_name": {
+      "th": "ริมเหนือ",
+      "en": "Rim Nuea"
+     },
+     "province_code": "50",
+     "province_name": {
+      "th": "เชียงใหม่",
+      "en": "Chiang Mai"
+     }
+    },
+    "diff_wl_bank": "2.49",
+    "diff_wl_bank_text": "ต่ำกว่าตลิ่ง (ม.)",
+    "river_gid": 32692,
+    "river_name": "น้ำเหมือง"
+   },
+   {
+    "id": 1313921399,
+    "waterlevel_datetime": "2026-09-27 17:00",
+    "waterlevel_m": null,
+    "waterlevel_msl": "65.56",
+    "waterlevel_msl_previous": "59.58",
+    "flow_rate": null,
+    "discharge": "0.00",
+    "storage_percent": "204.70",
+    "sort_order": null,
+    "station_type": "tele_waterlevel",
+    "situation_level": 5,
+    "agency": {
+     "id": 8,
+     "agency_name": {
+      "th": "การไฟฟ้าฝ่ายผลิตแห่งประเทศไทย",
+      "en": "Electricity Generating Authority of Thailand",
+      "jp": ""
+     },
+     "agency_shortname": {
+      "th": "กฟผ.",
+      "en": "EGAT",
+      "jp": ""
+     }
+    },
+    "basin": {
+     "id": 15,
+     "basin_code": 14,
+     "basin_name": {
+      "th": "ลุ่มน้ำแม่กลอง",
+      "en": "Mae Klong Basin"
+     }
+    },
+    "station": {
+     "id": 700590,
+     "tele_station_name": {
+      "th": "บ้านแม่น้ำน้อย"
+     },
+     "tele_station_lat": 14.44497,
+     "tele_station_long": 98.80493,
+     "tele_station_oldcode": "MKVKD07",
+     "tele_station_type": "tele_waterlevel",
+     "left_bank": 72.14,
+     "right_bank": 60.48,
+     "min_bank": 60.48,
+     "ground_level": 55.63,
+     "offset": null,
+     "sub_basin_id": 272,
+     "agency_id": 8,
+     "geocode_id": 6600,
+     "hydro_id": null,
+     "qmax": null,
+     "is_key_station": false,
+     "warning_level_m": null,
+     "critical_level_m": null,
+     "critical_level_msl": 62.4
+    },
+    "geocode": {
+     "area_code": "2",
+     "area_name": {
+      "th": "ภาคกลาง",
+      "en": "Central"
+     },
+     "amphoe_code": "02",
+     "amphoe_name": {
+      "th": "ไทรโยค",
+      "en": "Sai Yok District"
+     },
+     "tumbon_code": "04",
+     "tumbon_name": {
+      "th": "ไทรโยค",
+      "en": "Sai Yok"
+     },
+     "province_code": "71",
+     "province_name": {
+      "th": "กาญจนบุรี",
+      "en": "Kanchanaburi"
+     }
+    },
+    "diff_wl_bank": "5.08",
+    "diff_wl_bank_text": "ล้นตลิ่ง (ม.)",
+    "river_gid": 181830,
+    "river_name": "ห้วยแม่น้ำน้อย"
+   },
+   {
+    "id": 1313902281,
+    "waterlevel_datetime": "2026-09-27 16:00",
+    "waterlevel_m": null,
+    "waterlevel_msl": "51.09",
+    "waterlevel_msl_previous": "50.85",
+    "flow_rate": null,
+    "discharge": "1368.50",
+    "storage_percent": "157.88",
+    "sort_order": null,
+    "station_type": "tele_waterlevel",
+    "situation_level": 5,
+    "agency": {
+     "id": 12,
+     "agency_name": {
+      "th": "กรมชลประทาน ",
+      "en": "Royal Irrigation Department",
+      "jp": ""
+     },
+     "agency_shortname": {
+      "th": "ชป.",
+      "en": "RID",
+      "jp": ""
+     }
+    },
+    "basin": {
+     "id": 15,
+     "basin_code": 14,
+     "basin_name": {
+      "th": "ลุ่มน้ำแม่กลอง",
+      "en": "Mae Klong Basin"
+     }
+    },
+    "station": {
+     "id": 505018,
+     "tele_station_name": {
+      "th": "บ้านปากแซง"
+     },
+     "tele_station_lat": 14.21513,
+     "tele_station_long": 99.058197,
+     "tele_station_oldcode": "K.58",
+     "tele_station_type": "tele_waterlevel",
+     "left_bank": 97.251,
+     "right_bank": 96.106,
+     "min_bank": 45.8,
+     "ground_level": 36.66,
+     "offset": 39.5,
+     "sub_basin_id": 273,
+     "agency_id": 12,
+     "geocode_id": 6598,
+     "hydro_id": 7,
+     "qmax": 630,
+     "is_key_station": true,
+     "warning_level_m": null,
+     "critical_level_m": null,
+     "critical_level_msl": null
+    },
+    "geocode": {
+     "area_code": "2",
+     "area_name": {
+      "th": "ภาคกลาง",
+      "en": "Central"
+     },
+     "amphoe_code": "02",
+     "amphoe_name": {
+      "th": "ไทรโยค",
+      "en": "Sai Yok District"
+     },
+     "tumbon_code": "02",
+     "tumbon_name": {
+      "th": "ท่าเสา",
+      "en": "Tha Sao"
+     },
+     "province_code": "71",
+     "province_name": {
+      "th": "กาญจนบุรี",
+      "en": "Kanchanaburi"
+     }
+    },
+    "diff_wl_bank": "5.29",
+    "diff_wl_bank_text": "ล้นตลิ่ง (ม.)",
+    "river_gid": 183975,
+    "river_name": "แม่น้ำแควน้อย"
+   }
+  ]
+ }
+}
