@@ -18,7 +18,7 @@ def tmp_data(tmp_path, monkeypatch):
 
 def test_parse_waterlevel_load_real_payload():
     from app import thaiwater
-    rows = thaiwater.parse_waterlevel_load(json.loads((FIX / "waterlevel_load_sample.json").read_text()))
+    rows = thaiwater.parse_waterlevel_load(json.loads((FIX / "waterlevel_load_sample.json").read_text(encoding="utf-8")))
     by = {r["station_id"]: r for r in rows}
     assert set(by) == {3226, 3247, 3240}            # สถานีอื่นถูกกรองออก
     assert by[3226]["level_msl"] == 301.68 and by[3226]["t"] == dt.datetime(2026, 9, 27, 16, 0)

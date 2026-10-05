@@ -13,7 +13,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 
-from . import collector, config, features, model, store
+from . import collector, config, features, forecast_logic, model, store
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -32,15 +32,7 @@ def _r(v, n=2):
     return None if v is None or (isinstance(v, float) and math.isnan(v)) else round(float(v), n)
 
 
-def _status(level_m: float) -> str:
-    L = config.LEVELS
-    if level_m >= L["overflow"]:
-        return "overflow"
-    if level_m >= L["critical"]:
-        return "critical"
-    if level_m >= L["watch"]:
-        return "watch"
-    return "normal"
+_status = forecast_logic.status
 
 
 def _now(at: str | None) -> dt.datetime:
@@ -49,26 +41,38 @@ def _now(at: str | None) -> dt.datetime:
     return collector.now_th()
 
 
+def _travel(st: dict) -> dict:
+    tr = st.get("travel") or {}
+    lo, hi = tr.get("hours") or (None, None)
+    return {"hours_min": lo, "hours_max": hi, "source": tr.get("source", "")}
+
+
 def _upstream(wide: pd.DataFrame) -> list[dict]:
     out = []
-    for key in ("P67", "P21"):
+    for key in config.MODEL_UPSTREAM:
         st = config.STATIONS[key]
+        item = {"key": key, "code": st["code"], "name": st["name"], "river": st["river"], "travel": _travel(st)}
         s = wide[key].dropna()
-        if s.empty:
-            out.append({"key": key, "code": st["code"], "name": st["name"], "river": st["river"], "travel": st["travel"]})
-            continue
-        t, v = s.index[-1], s.iloc[-1]
-        prev = s[s.index <= t - pd.Timedelta(hours=3)]
-        out.append({
-            "key": key, "code": st["code"], "name": st["name"], "river": st["river"], "travel": st["travel"],
-            "t": t.isoformat(), "vs_bank_m": _r(v - st["bank_msl"]),
-            "change_3h_m": _r(v - prev.iloc[-1]) if len(prev) else None,
-        })
+        if not s.empty:
+            t, v = s.index[-1], s.iloc[-1]
+            prev = s[s.index <= t - pd.Timedelta(hours=3)]
+            item.update({"t": t.isoformat(), "vs_bank_m": _r(v - st["bank_msl"]),
+                         "change_3h_m": _r(v - prev.iloc[-1]) if len(prev) else None})
+        out.append(item)
     return out
 
 
+def _p1_range(bundle: dict):
+    rng = model.p1_range(bundle)
+    if rng is None:
+        a, b = (pd.Timestamp(t).to_pydatetime() for t in bundle["horizons"][config.HORIZONS[0]]["train_range"])
+        rng = model.p1_range(bundle, store.hourly(start=a, end=b))
+    return rng
+
+
 @app.get("/api/forecast")
-def forecast(at: str | None = Query(None, description="เฉพาะโหมดสาธิต: เวลาที่ต้องการดู 'YYYY-MM-DD HH:MM'")):
+def forecast(at: str | None = Query(None, description="เฉพาะโหมดสาธิต: เวลาที่ต้องการดู 'YYYY-MM-DD HH:MM'"),
+             my: float | None = Query(None, ge=0, le=10, description="ระดับน้ำของผู้ใช้ (ม. ตามไม้วัด P.1)")):
     bundle = model.load()
     if bundle is None:
         raise HTTPException(503, "กำลังเตรียมโมเดลครั้งแรก รอประมาณ 1 นาทีแล้วรีเฟรชหน้า")
@@ -103,17 +107,23 @@ def forecast(at: str | None = Query(None, description="เฉพาะโหม�
 
     hist = p1[p1.index >= now - pd.Timedelta(hours=72)]
     fetch = store.get_meta("last_fetch")
+    stale = (not config.DEMO) and age_h > config.STALE_AFTER_HOURS
+    adv, basis = forecast_logic.advice_status(last_v, pred)
     return {
         "mode": "demo" if config.DEMO else "live",
         "now": now.isoformat(timespec="minutes"),
         "levels": config.LEVELS,
         "p1": {"t": last_t.isoformat(), "level_m": _r(last_v), "level_msl": _r(last_v + config.P1_GAUGE_ZERO_MSL),
-               "status": _status(last_v), "age_hours": _r(age_h, 1),
-               "stale": (not config.DEMO) and age_h > config.STALE_AFTER_HOURS,
+               "status": _status(last_v), "age_hours": _r(age_h, 1), "age_minutes": max(0, round(age_h * 60)),
+               "stale": stale,
                "discharge_m3s": None if config.DEMO else _r(store.latest_discharge().get("P1"), 1)},
         "forecast": fc,
         "trend12": trend,
         "warning": warning,
+        "next_threshold": forecast_logic.next_threshold(pred, now=now),
+        "my_level": forecast_logic.my_level(pred, my, last_v, now=now) if my is not None else None,
+        "advice": {"status": adv, "basis": basis},
+        "reliability": forecast_logic.reliability(last_v, _p1_range(bundle), wide, now, pred, stale, age_h),
         "history": [{"t": t.isoformat(), "m": _r(v)} for t, v in hist.items()],
         "upstream": _upstream(wide),
         "model": {"trained_at": bundle["trained_at"],

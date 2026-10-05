@@ -1,0 +1,26 @@
+// ตรวจการตั้ง "ระดับน้ำของฉัน": บันทึก → แสดงในหน้า → รีโหลดแล้วยังอยู่ → ล้างค่า
+import { chromium } from "playwright";
+const BASE = process.argv[2] || "http://127.0.0.1:8000";
+const b = await chromium.launch();
+const page = await b.newPage({ viewport: { width: 390, height: 740 } });
+const errors = [];
+page.on("pageerror", (e) => errors.push(String(e)));
+page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+await page.goto(`${BASE}/?at=2024-10-03 07:00`, { waitUntil: "networkidle" });
+await page.fill("#my-input", "9");
+await page.click("#my-form button[type=submit]");
+const invalid = await page.isVisible("#my-error");
+await page.fill("#my-input", "3.80");
+await page.keyboard.press("Enter");
+await page.waitForFunction(() => !document.getElementById("my-status").hidden);
+const status1 = await page.textContent("#my-status");
+await page.reload({ waitUntil: "networkidle" });
+await page.waitForFunction(() => !document.getElementById("my-status").hidden);
+const kept = await page.inputValue("#my-input");
+const legend = await page.isVisible("#legend-my");
+await page.screenshot({ path: process.argv[3] || "shots/390_mylevel.png" });
+await page.click("#my-clear");
+await page.waitForFunction(() => document.getElementById("my-status").hidden);
+console.log(JSON.stringify({ invalid, status1, kept, legend, errors }, null, 1));
+await b.close();
+process.exit(errors.length || !invalid || kept !== "3.80" || !legend ? 1 : 0);

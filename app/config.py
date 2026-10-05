@@ -17,12 +17,14 @@ HTTP_HEADERS = {
 # station_id = รหัสตัวเลขของ ThaiWater, bank_msl = ระดับตลิ่งต่ำสุด (ม.รทก.)
 STATIONS = {
     "P1": {"id": 3226, "code": "P.1", "name": "สะพานนวรัฐ", "river": "แม่น้ำปิง", "bank_msl": 304.20},
+    # travel = เวลาที่น้ำเดินทางถึง P.1 (ชม.) ใส่เฉพาะค่าที่มีแหล่งอ้างอิง ถ้าไม่มีให้ hours=None และ source=""
     "P67": {"id": 3247, "code": "P.67", "name": "บ้านแม่แต สันทราย", "river": "แม่น้ำปิง", "bank_msl": 318.93,
-            "travel": "น้ำจากจุดนี้ถึงสะพานนวรัฐในราว 6 ชั่วโมง"},
+            "travel": {"hours": (6, 6), "source": "docs/experiment-findings.md: lag 6 ชม. r = 0.67 ข้อมูลปี 2567"}},
     "P21": {"id": 3240, "code": "P.21", "name": "บ้านริมใต้ แม่ริม", "river": "น้ำแม่ริม", "bank_msl": 323.50,
-            "travel": "น้ำจากจุดนี้ถึงสะพานนวรัฐในราว 2–3 ชั่วโมง"},
+            "travel": {"hours": (2, 3), "source": "docs/experiment-findings.md: lag 2–3 ชม. เช้า 3 ต.ค. 2567"}},
 }
 ID_TO_KEY = {v["id"]: k for k, v in STATIONS.items()}
+MODEL_UPSTREAM = ("P67", "P21")   # สถานีต้นน้ำที่โมเดลใช้เป็น feature
 
 # P.1: ศูนย์ไม้วัดระดับ = ตลิ่ง 304.20 ม.รทก. − 3.70 ม.
 P1_GAUGE_ZERO_MSL = 300.50
@@ -40,7 +42,9 @@ WARNING_HORIZON = 6               # ใช้ Ridge-delta (M4) ที่ 6 ช�
 
 POLL_MINUTES = int(os.getenv("P1_POLL_MINUTES", 10))
 RETRAIN_HOURS = int(os.getenv("P1_RETRAIN_HOURS", 24))
-STALE_AFTER_HOURS = 3             # ข้อมูลเก่ากว่านี้ = แจ้งผู้ใช้ว่าข้อมูลไม่สด
+STALE_AFTER_HOURS = 2             # ข้อมูลเก่ากว่านี้ = แจ้งผู้ใช้ว่าข้อมูลไม่สด (กรมชลฯ ป้อนช้า 1–2 ชม. เป็นปกติ)
+UPSTREAM_STALE_HOURS = 3          # สถานีต้นน้ำไม่มีค่าใหม่นานกว่านี้ = พยากรณ์เชื่อถือได้น้อยลง
+MY_LEVEL_NEAR_M = 0.30            # พยากรณ์ขอบบนเข้าใกล้ "ระดับน้ำของฉัน" ในระยะนี้ = แจ้งในหน้า
 
 # DEMO: เล่นข้อมูลน้ำท่วมปี 2567 แทนการดึงข้อมูลจริง (ใช้ตอนไม่มีเน็ตหรืออยากดูหน้าตาตอนน้ำขึ้น)
 DEMO = os.getenv("P1_DEMO", "0") == "1"

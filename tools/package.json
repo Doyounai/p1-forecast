@@ -1,0 +1,9 @@
+{
+  "name": "p1-forecast-tools",
+  "private": true,
+  "description": "เครื่องมือทดสอบหน้าเว็บ (Playwright) ไม่ใช่ส่วนของหน้าเว็บ",
+  "type": "module",
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}

@@ -71,6 +71,8 @@ def train(wide: pd.DataFrame) -> dict:
         X, y = _dataset(wide, h)
         if len(X) < MIN_SAMPLES:
             raise RuntimeError(f"ข้อมูลไม่พอสำหรับ h={h} ({len(X)} ชั่วโมง ต้องการอย่างน้อย {MIN_SAMPLES})")
+        if "p1_range" not in bundle:   # ช่วงระดับ P.1 ที่โมเดลเคยเห็น ใช้บอกผู้ใช้เมื่อน้ำอยู่นอกช่วงนี้
+            bundle["p1_range"] = (float(X["p1"].min()), float(X["p1"].max()))
         oof = _blocked_oof(X, y, h)
         if len(oof):
             ens = (oof["ridge"] + oof["gbm"]) / 2
@@ -102,6 +104,17 @@ def load() -> dict | None:
         return joblib.load(config.MODEL_PATH)
     except FileNotFoundError:
         return None
+
+
+def p1_range(bundle: dict, wide_all: pd.DataFrame | None = None) -> tuple[float, float] | None:
+    """ช่วงระดับ P.1 (ตามไม้วัด) ในข้อมูลเทรน bundle รุ่นเก่าไม่มีค่านี้ จึงคำนวณจาก train_range แทน"""
+    if "p1_range" in bundle:
+        return tuple(bundle["p1_range"])
+    if wide_all is None:
+        return None
+    a, b = (pd.Timestamp(t) for t in bundle["horizons"][config.HORIZONS[0]]["train_range"])
+    s = features.gauge_p1(wide_all.loc[a:b]).dropna()
+    return (float(s.min()), float(s.max())) if len(s) else None
 
 
 def predict(bundle: dict, wide: pd.DataFrame) -> dict | None:

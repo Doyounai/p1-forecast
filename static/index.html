@@ -10,14 +10,15 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <link rel="modulepreload" href="js/main.js">
 </head>
 <body>
   <div id="demo-bar" class="demo-bar" hidden>
     <div class="wrap demo-inner">
-      <p><strong>โหมดสาธิต</strong> ย้อนดูน้ำท่วมเชียงใหม่ ก.ย.–ต.ค. 2567 ด้วยข้อมูลจริง</p>
+      <p data-i18n="demo.text">โหมดสาธิต: น้ำท่วมเชียงใหม่ ก.ย.–ต.ค. 2567 ข้อมูลจริง</p>
       <div class="demo-controls">
-        <button id="demo-play" type="button" aria-pressed="false">เล่น</button>
-        <label class="sr-only" for="demo-slider">เลือกเวลา</label>
+        <button id="demo-play" type="button" aria-pressed="false" data-i18n="demo.play">เล่น</button>
+        <label class="sr-only" for="demo-slider" data-i18n="demo.pick">เลือกเวลา</label>
         <input id="demo-slider" type="range" min="0" max="0" step="1" value="0">
         <output id="demo-time" for="demo-slider"></output>
       </div>
@@ -25,58 +26,110 @@
   </div>
 
   <header class="wrap masthead">
-    <h1>น้ำปิงที่สะพานนวรัฐ</h1>
-    <p class="sub">สถานี P.1 อำเภอเมืองเชียงใหม่ <span id="updated"></span></p>
+    <h1 data-i18n="head.title">น้ำปิงที่สะพานนวรัฐ</h1>
+    <p class="sub"><span data-i18n="head.sub">สถานี P.1 อำเภอเมืองเชียงใหม่</span></p>
+    <details id="fresh" class="fresh">
+      <summary>
+        <span id="fresh-badge" class="fresh-badge" data-i18n="fresh.stale" hidden>ข้อมูลไม่สด</span>
+        <span id="fresh-text" class="fresh-text"></span>
+        <span id="fresh-at" class="fresh-at"></span>
+      </summary>
+      <div class="fresh-body">
+        <p id="fresh-stale" class="fresh-stale" data-i18n="fresh.stale_explain" hidden></p>
+        <p data-i18n="fresh.explain"></p>
+        <p id="fresh-checked" class="small"></p>
+      </div>
+    </details>
   </header>
 
   <main class="wrap">
-    <div id="alert" class="alert" role="status" hidden></div>
-
     <section class="now" aria-labelledby="now-title">
       <figure class="gauge" aria-describedby="gauge-caption">
-        <svg id="gauge" viewBox="0 0 220 560" role="img" aria-label="ไม้วัดระดับน้ำ P.1"></svg>
+        <svg id="gauge" viewBox="0 0 220 560" role="img" data-i18n-aria="gauge.aria" aria-label="ไม้วัดระดับน้ำ P.1"></svg>
         <figcaption id="gauge-caption" class="sr-only"></figcaption>
       </figure>
 
       <div class="readout">
         <h2 id="now-title" class="sr-only">ระดับน้ำตอนนี้</h2>
-        <p class="level"><span id="level-value">–</span><span class="unit">ม.</span></p>
-        <p id="level-note" class="level-note">กำลังโหลดข้อมูล</p>
+        <p class="level"><span id="level-value">–</span><span class="unit" data-i18n="level.unit">ม.</span></p>
+        <p class="status-line"><span id="status-word" class="status-word"></span> <span id="level-note" data-i18n="level.loading">กำลังโหลดข้อมูล</span></p>
         <p id="discharge" class="small"></p>
       </div>
 
-      <div class="next">
-        <h2 class="block-title">อีกไม่กี่ชั่วโมงข้างหน้า</h2>
-        <ol id="forecast" class="forecast"></ol>
-        <p id="trend" class="trend"></p>
+      <div class="outlook" aria-live="polite">
+        <h2 class="block-title" data-i18n="fc.title">อีกไม่กี่ชั่วโมงข้างหน้า</h2>
+        <p class="fc-summary"><span id="fc-summary"></span> <span id="fc-range" class="fc-range"></span></p>
+        <p id="fc-eta" class="fc-eta" hidden></p>
+        <p id="my-status" class="my-status" hidden></p>
+        <p class="trend"><span id="trend"></span> <span id="trend-note" class="small"></span></p>
+        <div id="reliability" class="reliability" hidden>
+          <p class="rel-title" data-i18n="rel.title">ตัวเลขพยากรณ์เชื่อถือได้น้อยลง</p>
+          <ul id="rel-reasons"></ul>
+        </div>
       </div>
+
+      <section id="advice" class="advice" aria-labelledby="advice-title">
+        <h2 id="advice-title" class="advice-title" data-i18n="advice.title">ควรทำอะไร</h2>
+        <p id="advice-basis" class="advice-basis"></p>
+        <ul id="advice-list"></ul>
+        <p class="small" data-i18n="advice.footer"></p>
+      </section>
+    </section>
+
+    <section class="table-block" aria-labelledby="table-title">
+      <h2 id="table-title" class="block-title" data-i18n="fc.table_title">พยากรณ์ 1, 3 และ 6 ชั่วโมง</h2>
+      <ol id="forecast" class="forecast"></ol>
     </section>
 
     <section class="chart-block" aria-labelledby="chart-title">
-      <h2 id="chart-title" class="block-title">3 วันที่ผ่านมาและ 6 ชั่วโมงข้างหน้า</h2>
-      <svg id="chart" viewBox="0 0 900 340" preserveAspectRatio="xMinYMin meet" role="img" aria-label="กราฟระดับน้ำ P.1 ย้อนหลัง 72 ชั่วโมงพร้อมพยากรณ์"></svg>
+      <h2 id="chart-title" class="block-title" data-i18n="chart.title">3 วันที่ผ่านมาและ 6 ชั่วโมงข้างหน้า</h2>
+      <svg id="chart" viewBox="0 0 900 340" preserveAspectRatio="xMinYMin meet" role="img" data-i18n-aria="chart.aria" aria-label="กราฟระดับน้ำ P.1"></svg>
       <p class="legend">
-        <span class="key key-obs"></span>ระดับที่วัดได้
-        <span class="key key-fc"></span>พยากรณ์
-        <span class="key key-band"></span>ช่วงที่น่าจะเป็น
+        <span><span class="key key-obs"></span><span data-i18n="chart.obs">ระดับที่วัดได้</span></span>
+        <span><span class="key key-fc"></span><span data-i18n="chart.fc">พยากรณ์</span></span>
+        <span><span class="key key-band"></span><span data-i18n="chart.band">ช่วงที่น่าจะเป็น</span></span>
+        <span id="legend-my" hidden><span class="key key-my"></span><span data-i18n="chart.my">ระดับน้ำของฉัน</span></span>
       </p>
     </section>
 
     <section class="upstream" aria-labelledby="up-title">
-      <h2 id="up-title" class="block-title">ต้นน้ำที่ไหลมาถึงตัวเมือง</h2>
+      <h2 id="up-title" class="block-title" data-i18n="up.title">ต้นน้ำที่ไหลมาถึงตัวเมือง</h2>
       <div id="upstream" class="up-list"></div>
     </section>
 
+    <section class="mylevel" aria-labelledby="my-title">
+      <h2 id="my-title" class="block-title" data-i18n="my.title">ระดับน้ำของฉัน</h2>
+      <p id="my-current"></p>
+      <form id="my-form" class="my-form" novalidate>
+        <label for="my-input" data-i18n="my.label">น้ำเริ่มเข้าบ้านหรือร้านของฉันเมื่อไม้วัด P.1 ถึง (ม.)</label>
+        <div class="my-row">
+          <input id="my-input" type="number" inputmode="decimal" min="0.5" max="8" step="0.05" aria-describedby="my-how my-error">
+          <button type="submit" data-i18n="my.save">บันทึก</button>
+          <button type="button" id="my-clear" class="secondary" data-i18n="my.clear">ล้างค่า</button>
+        </div>
+        <p id="my-error" class="my-error" role="alert" hidden></p>
+      </form>
+      <div id="my-how" class="my-how">
+        <p class="my-how-title" data-i18n="my.how_title">หาตัวเลขนี้อย่างไร</p>
+        <p data-i18n="my.how"></p>
+        <p class="small"><span data-i18n="my.how_caveat"></span> · <span data-i18n="my.stored"></span></p>
+      </div>
+    </section>
+
     <section class="about" aria-labelledby="about-title">
-      <h2 id="about-title" class="block-title">ตัวเลขนี้มาจากไหน</h2>
-      <p>ระดับน้ำจริงมาจาก <a href="https://www.thaiwater.net/" rel="noopener">ThaiWater</a> ของสถาบันสารสนเทศทรัพยากรน้ำ (สสน.) ดึงใหม่ทุก 10 นาที
-        ตัวเลขพยากรณ์มาจากโมเดลที่ทำนายว่าระดับน้ำจะเปลี่ยนไปเท่าไร โดยดูจากแนวโน้มที่ P.1 และระดับน้ำที่ P.67 กับ P.21</p>
+      <h2 id="about-title" class="block-title" data-i18n="about.title">ตัวเลขนี้มาจากไหน</h2>
+      <p><span data-i18n="about.source_pre">ระดับน้ำจริงมาจาก</span> <a href="https://www.thaiwater.net/" rel="noopener">ThaiWater</a>
+        <span data-i18n="about.source_post"></span></p>
       <p id="model-info" class="small"></p>
-      <p class="disclaimer">นี่คือต้นแบบงานวิจัย ไม่ใช่ระบบเตือนภัยทางการ ถ้าน้ำใกล้ถึงบ้าน ให้ทำตามประกาศของจังหวัดและกรมชลประทาน
+      <p class="disclaimer" data-i18n="disclaimer.full">นี่คือต้นแบบงานวิจัย ไม่ใช่ระบบเตือนภัยทางการ ถ้าน้ำใกล้ถึงบ้าน ให้ทำตามประกาศของจังหวัดและกรมชลประทาน
         สายด่วนกรมชลประทาน 1460 และ ปภ. 1784</p>
     </section>
   </main>
 
-  <script src="app.js"></script>
+  <footer class="footer">
+    <p class="wrap" data-i18n="disclaimer.short">ต้นแบบงานวิจัย ไม่ใช่ระบบเตือนภัยทางการ · สายด่วนกรมชลประทาน 1460 · ปภ. 1784</p>
+  </footer>
+
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

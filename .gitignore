@@ -5,3 +5,5 @@ data/*.sqlite3
 data/*.joblib
 data/live/
 .pytest_cache/
+tools/node_modules/
+shots/
