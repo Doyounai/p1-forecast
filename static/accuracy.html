@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ความแม่นย้อนหลัง — พยากรณ์ระดับน้ำ P.1</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='5' y='1' width='6' height='14' fill='%23fff' stroke='%23C23A2B'/><rect x='5' y='9' width='6' height='6' fill='%232C6E7A'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-title-key="acc.meta_title">
+  <header class="wrap masthead sub-page">
+    <p class="back"><a href="./" data-i18n="nav.back">← กลับหน้าหลัก</a></p>
+    <h1 data-i18n="acc.title">พยากรณ์แม่นแค่ไหนในสภาพจริง</h1>
+    <p class="sub" data-i18n="acc.lead"></p>
+  </header>
+
+  <main class="wrap page">
+    <p id="acc-status" class="notice" hidden></p>
+
+    <section id="acc-live" hidden>
+      <fieldset class="seg" aria-describedby="acc-since">
+        <legend class="sr-only" data-i18n="acc.range">ช่วงเวลา</legend>
+        <label><input type="radio" name="days" value="7" checked> <span data-i18n="acc.d7">7 วันล่าสุด</span></label>
+        <label><input type="radio" name="days" value="30"> <span data-i18n="acc.d30">30 วันล่าสุด</span></label>
+      </fieldset>
+      <p id="acc-since" class="small"></p>
+
+      <h2 class="block-title" data-i18n="acc.summary_title">คลาดเคลื่อนเฉลี่ยแยกตามระยะล่วงหน้า</h2>
+      <div class="table-scroll" tabindex="0" role="region" aria-labelledby="acc-table-cap">
+        <table class="data-table">
+          <caption id="acc-table-cap" class="sr-only" data-i18n="acc.summary_title"></caption>
+          <thead><tr>
+            <th scope="col" data-i18n="acc.col_h">ล่วงหน้า</th>
+            <th scope="col" data-i18n="acc.col_n">จำนวนครั้ง</th>
+            <th scope="col" class="is-main" data-i18n="acc.col_m7">M7</th>
+            <th scope="col" data-i18n="acc.col_m4">M4</th>
+            <th scope="col" data-i18n="acc.col_m6">M6</th>
+            <th scope="col" data-i18n="acc.col_persist">ทายว่าเท่าเดิม</th>
+            <th scope="col" data-i18n="acc.col_cover">ค่าจริงอยู่ในช่วง</th>
+            <th scope="col" data-i18n="acc.col_bias">เอนเอียง</th>
+            <th scope="col" data-i18n="acc.col_cv">ตอนทดสอบย้อนหลัง</th>
+          </tr></thead>
+          <tbody id="acc-body"></tbody>
+        </table>
+      </div>
+      <p id="acc-trend12"></p>
+
+      <h2 class="block-title" data-i18n="acc.chart_title">พยากรณ์เทียบค่าจริง</h2>
+      <fieldset class="seg" id="acc-h">
+        <legend data-i18n="acc.chart_h">ล่วงหน้า</legend>
+      </fieldset>
+      <svg id="acc-chart" viewBox="0 0 900 320" preserveAspectRatio="xMinYMin meet" role="img"></svg>
+      <p class="legend">
+        <span><span class="key key-obs"></span><span data-i18n="acc.chart_actual">ระดับจริง</span></span>
+        <span><span class="key key-fc"></span><span data-i18n="acc.chart_pred">พยากรณ์</span></span>
+        <span><span class="key key-band"></span><span data-i18n="acc.chart_band">ช่วงที่น่าจะเป็น</span></span>
+      </p>
+    </section>
+
+    <section id="acc-cv" hidden>
+      <h2 class="block-title" data-i18n="acc.cv_title">ผลทดสอบย้อนหลังตอนเทรน</h2>
+      <p id="acc-cv-lead" class="small"></p>
+      <div class="table-scroll" tabindex="0" role="region" aria-labelledby="acc-cv-cap">
+        <table class="data-table">
+          <caption id="acc-cv-cap" class="sr-only" data-i18n="acc.cv_title"></caption>
+          <thead><tr>
+            <th scope="col" data-i18n="acc.col_h">ล่วงหน้า</th>
+            <th scope="col" class="is-main" data-i18n="acc.col_m7">M7</th>
+            <th scope="col" data-i18n="acc.col_m4">M4</th>
+            <th scope="col" data-i18n="acc.col_m6">M6</th>
+            <th scope="col" data-i18n="acc.col_persist">ทายว่าเท่าเดิม</th>
+          </tr></thead>
+          <tbody id="cv-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="notes">
+      <h2 class="block-title" data-i18n="acc.notes_title">อ่านตารางอย่างไร</h2>
+      <ul class="small">
+        <li data-i18n="acc.note_rmse"></li>
+        <li data-i18n="acc.note_persist"></li>
+        <li data-i18n="acc.note_cover"></li>
+        <li data-i18n="acc.note_bias"></li>
+        <li data-i18n="acc.note_cv"></li>
+        <li data-i18n="acc.note_late"></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <nav class="wrap foot-nav" aria-label="หน้าอื่น">
+      <a href="./" data-i18n="nav.home">หน้าหลัก</a>
+      <a href="accuracy.html" aria-current="page" data-i18n="nav.accuracy">ความแม่นย้อนหลัง</a>
+      <a href="data.html" data-i18n="nav.data">ข้อมูลสำหรับนักวิจัย</a>
+      <a href="admin.html" data-i18n="nav.admin">สถานะระบบ</a>
+    </nav>
+    <p class="wrap" data-i18n="disclaimer.short">ต้นแบบงานวิจัย ไม่ใช่ระบบเตือนภัยทางการ</p>
+  </footer>
+  <script type="module" src="js/accuracy.js"></script>
+</body>
+</html>

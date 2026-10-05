@@ -34,11 +34,15 @@ def _time(s):
     return None
 
 
+class RateLimited(RuntimeError):
+    """ThaiWater ตอบ 429 แยกจาก error อื่นเพื่อให้ collector ถอยระยะ poll และนับลง meta"""
+
+
 def get_json(path: str, params: dict | None = None, timeout: int = 60):
     r = requests.get(f"{config.THAIWATER_BASE}/{path}", params=params,
                      headers=config.HTTP_HEADERS, timeout=timeout)
     if r.status_code == 429:
-        raise RuntimeError("ThaiWater ตอบ 429 (เรียกถี่เกินไป) ลองใหม่ภายหลัง")
+        raise RateLimited("ThaiWater ตอบ 429 (เรียกถี่เกินไป) ลองใหม่ภายหลัง")
     r.raise_for_status()
     return r.json()
 

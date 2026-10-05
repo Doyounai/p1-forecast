@@ -20,6 +20,23 @@ CREATE TABLE IF NOT EXISTS obs (
     PRIMARY KEY (station_id, t)
 );
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT);
+-- พยากรณ์ทุกครั้งที่ออกจริง (ไม่ใช่ย้อนหลัง) เก็บครั้งแรกของแต่ละ issued_for แล้วเติมค่าจริงเมื่อมาถึง
+CREATE TABLE IF NOT EXISTS forecast_log (
+    issued_for TEXT NOT NULL,     -- ชั่วโมงล่าสุดที่มี feature ครบ (เวลาไทย)
+    h INTEGER NOT NULL,
+    model TEXT NOT NULL,          -- ridge (M4) / gbm (M6) / ensemble (M7)
+    target_t TEXT NOT NULL,
+    now_m REAL NOT NULL,          -- ระดับ P.1 ตามไม้วัด ณ issued_for (ใช้เทียบกับการทายว่าเท่าเดิม)
+    pred_m REAL NOT NULL,
+    lo_m REAL,
+    hi_m REAL,
+    trained_at TEXT,
+    logged_at TEXT NOT NULL,
+    actual_m REAL,                -- ระดับจริงที่ target_t (ตามไม้วัด) เติมทีหลัง
+    err_m REAL,                   -- pred_m − actual_m (บวก = ทายสูงกว่าจริง)
+    PRIMARY KEY (issued_for, h, model)
+);
+CREATE INDEX IF NOT EXISTS forecast_log_target ON forecast_log (target_t);
 """
 
 
@@ -89,6 +106,17 @@ def latest_discharge() -> dict:
             "SELECT station_id, discharge FROM obs o WHERE t = (SELECT MAX(t) FROM obs WHERE station_id=o.station_id)"
         ).fetchall()
     return {config.ID_TO_KEY.get(sid): q for sid, q in rows}
+
+
+def station_coverage(now: dt.datetime) -> dict:
+    """ค่าล่าสุดและจำนวนชั่วโมงที่มีข้อมูลของแต่ละสถานี (ใช้ในหน้าสถานะระบบ)"""
+    d24 = (now - dt.timedelta(hours=24)).strftime("%Y-%m-%d %H:%M")
+    with connect() as con:
+        rows = con.execute(
+            "SELECT station_id, MAX(t), COUNT(DISTINCT substr(t,1,13)), "
+            "COUNT(DISTINCT CASE WHEN t >= ? THEN substr(t,1,13) END) FROM obs GROUP BY station_id", (d24,)).fetchall()
+    return {config.ID_TO_KEY[sid]: {"last_t": last, "hours_total": n, "hours_24h": n24}
+            for sid, last, n, n24 in rows if sid in config.ID_TO_KEY}
 
 
 def count_hours() -> int:

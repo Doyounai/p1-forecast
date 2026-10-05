@@ -13,7 +13,7 @@ import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 
-from . import collector, config, features, forecast_logic, model, store
+from . import collector, config, data_api, features, forecast_log, forecast_logic, model, store
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
@@ -25,7 +25,10 @@ async def lifespan(app: FastAPI):
     stop.set()
 
 
-app = FastAPI(title="P.1 Ping River forecast", lifespan=lifespan)
+app = FastAPI(title="P.1 Ping River forecast", lifespan=lifespan,
+              description="API ของเว็บพยากรณ์ระดับน้ำปิง สถานี P.1 สะพานนวรัฐ (ต้นแบบงานวิจัย ไม่ใช่ระบบเตือนภัยทางการ) "
+                          "เวลาทั้งหมดเป็นเวลาไทยแบบไม่มี offset คำอธิบายภาษาไทยอยู่ที่ /data.html")
+app.include_router(data_api.router)
 
 
 def _r(v, n=2):
@@ -161,11 +164,85 @@ def _demo_range():
     return [idx.min().isoformat(), idx.max().isoformat()]
 
 
-@app.get("/api/health")
+def _cv_metrics(bundle: dict | None) -> list[dict]:
+    """ความแม่นจากการทดสอบย้อนหลังตอนเทรน (blocked CV) ใช้เทียบกับความแม่นจริงใน forecast_log"""
+    if not bundle:
+        return []
+    return [{"h": h, **{k: bundle["horizons"][h]["metrics"].get(k) for k in
+             ("rmse_cm_ensemble", "rmse_cm_ridge", "rmse_cm_gbm", "rmse_cm_persistence", "n_oof")}}
+            for h in config.TABLE_HORIZONS if h in bundle["horizons"]]
+
+
+@app.get("/api/accuracy", tags=["ความแม่นย้อนหลัง"], summary="ความแม่นของพยากรณ์ที่ออกจริงเทียบค่าจริง")
+def accuracy(days: int = Query(7, description="ย้อนหลังกี่วัน (7 หรือ 30)"),
+             h: int = Query(6, ge=1, le=6, description="horizon ของกราฟพยากรณ์เทียบจริง")):
+    if days not in (7, 30):
+        raise HTTPException(422, "days ต้องเป็น 7 หรือ 30")
+    bundle = model.load()
+    now = _now(None)
+    out = {"mode": "demo" if config.DEMO else "live", "cv": _cv_metrics(bundle),
+           "model_trained_at": bundle["trained_at"] if bundle else None}
+    # โหมดสาธิตไม่มีการพยากรณ์สด จึงไม่มี log จริง (หน้าเว็บจะบอกเหตุผลและแสดงผล CV แทน)
+    out["log"] = None if config.DEMO else forecast_log.summary(now, days, series_h=h)
+    return out
+
+
+def _issues(fetch, polls, r429, cov, now, bundle, train_err, last_train, backfill) -> list[dict]:
+    """ปัญหาที่ควรดู เรียงจากสำคัญมากไปน้อย (หน้า admin แสดงเป็นรายการ)"""
+    out = []
+    if bundle is None:
+        out.append({"code": "no_model"})
+    if train_err and (not last_train or str(train_err["at"]) > str(last_train["at"])):
+        out.append({"code": "train_failed", "error": train_err["error"]})
+    if config.COLLECT:
+        if fetch and fetch.get("kind") in ("error", "429"):
+            out.append({"code": "last_poll_failed", "kind": fetch.get("kind"), "error": fetch.get("error")})
+        if fetch and fetch.get("kind") == "empty":
+            out.append({"code": "format_suspect", "error": fetch.get("error")})
+        n429 = sum(1 for p in polls if p.get("kind") == "429")
+        if n429:
+            out.append({"code": "rate_limited_24h", "count": n429})
+        if not backfill:
+            out.append({"code": "backfill_missing"})
+        for key in config.STATIONS:
+            c = cov.get(key)
+            age = (now - dt.datetime.fromisoformat(c["last_t"])).total_seconds() / 3600 if c else None
+            if age is None or age > config.STALE_AFTER_HOURS:
+                out.append({"code": "station_stale", "station": config.STATIONS[key]["code"],
+                            "age_hours": None if age is None else round(age, 1)})
+    return out
+
+
+@app.get("/api/health", tags=["สถานะระบบ"], summary="สถานะการดึงข้อมูล, 429, backfill, การเทรน และ log พยากรณ์")
 def health():
-    return {"mode": "demo" if config.DEMO else "live", "model": model.load() is not None,
-            "hours_stored": store.count_hours(), "last_fetch": store.get_meta("last_fetch"),
-            "last_train": store.get_meta("last_train"), "backfill": store.get_meta("backfill")}
+    now = _now(None)
+    bundle = model.load()
+    fetch, polls = store.get_meta("last_fetch"), store.get_meta("poll_log", [])
+    cutoff = (now - dt.timedelta(hours=24)).isoformat(sep=" ")
+    polls24 = [p for p in polls if str(p.get("at")) >= cutoff]
+    cov = store.station_coverage(now)
+    stations = {k: {**(cov.get(k) or {}), "code": st["code"],
+                    "age_hours": _r((now - dt.datetime.fromisoformat(cov[k]["last_t"])).total_seconds() / 3600, 1) if k in cov else None}
+                for k, st in config.STATIONS.items()}
+    r429, train_err, last_train, backfill = (store.get_meta(k) for k in ("http_429", "last_train_error", "last_train", "backfill"))
+    return {
+        "mode": "demo" if config.DEMO else "live", "now": now.isoformat(timespec="minutes"), "collect": config.COLLECT,
+        "model": bundle is not None, "hours_stored": store.count_hours(),
+        "last_fetch": fetch, "last_train": last_train, "backfill": backfill,
+        "issues": _issues(fetch, polls24, r429, cov, now, bundle, train_err, last_train, backfill),
+        "config": {"poll_minutes": config.POLL_MINUTES, "retrain_hours": config.RETRAIN_HOURS,
+                   "stale_after_hours": config.STALE_AFTER_HOURS, "levels": config.LEVELS},
+        "poll": {"wait_minutes": store.get_meta("poll_wait_minutes", config.POLL_MINUTES),
+                 "counts_24h": {k: sum(1 for p in polls24 if p.get("kind") == k) for k in ("ok", "empty", "429", "error")},
+                 "recent": polls[-config.POLL_LOG_MAX:]},
+        "http_429": r429, "last_train_error": train_err,
+        "model_info": None if bundle is None else {
+            "trained_at": bundle["trained_at"], "train_hours": bundle["horizons"][1]["n_train"],
+            "train_range": bundle["horizons"][1]["train_range"], "horizons": sorted(bundle["horizons"]),
+            "cv": _cv_metrics(bundle)},
+        "stations": stations,
+        "forecast_log": forecast_log.counts(),
+    }
 
 
 app.mount("/", StaticFiles(directory=config.ROOT / "static", html=True), name="static")

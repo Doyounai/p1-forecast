@@ -8,6 +8,7 @@ python -m app.cli info            ดูสรุปข้อมูลและ�
 import argparse
 import json
 import logging
+import sys
 
 from . import collector, config, model, store
 
@@ -15,6 +16,8 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
 
 def main():
+    if hasattr(sys.stdout, "reconfigure"):   # คอนโซล Windows (cp1252) พิมพ์ภาษาไทยไม่ได้
+        sys.stdout.reconfigure(encoding="utf-8")
     ap = argparse.ArgumentParser(description="P.1 forecast tools")
     ap.add_argument("cmd", choices=["backfill", "poll", "train", "info"])
     ap.add_argument("--days", type=int, default=365)

@@ -15,6 +15,7 @@ P1_DEMO=1 uvicorn app.main:app --port 8000 --reload   # โหมดสาธิ
 uvicorn app.main:app --port 8000                       # โหมดจริง ดึง ThaiWater
 pytest -q                                              # ต้องผ่านทุกข้อก่อน commit
 node tools/screens.mjs http://127.0.0.1:8000 shots     # ภาพหน้าจอ + ตรวจ console error (ต้อง cd tools && npm install ครั้งแรก)
+node tools/pages_check.mjs http://127.0.0.1:8000 shots # หน้ารอง: accuracy, data, admin
 python -m app.cli {backfill|poll|train|info}
 ```
 
@@ -28,11 +29,16 @@ python -m app.cli {backfill|poll|train|info}
 - `app/features.py` features ของโมเดล ต้องตรงกับในรายงานการทดลอง
 - `app/model.py` Ridge-delta + GBM-delta, band จาก blocked CV, `predict()`, `p1_range` (ช่วงระดับที่เคยเห็นตอนเทรน)
 - `app/forecast_logic.py` ฟังก์ชันล้วนที่ตีความพยากรณ์: `next_threshold`, `my_level`, `advice_status`, `reliability`
-- `app/collector.py` thread เบื้องหลัง: seed → backfill 1 ปี → poll ทุก 10 นาที → retrain ทุก 24 ชม.
-- `app/main.py` FastAPI: `/api/forecast?at=&my=` (มี `model_table` = พยากรณ์ 1–6 ชม. รายชั่วโมงของ M4/M6/M7), `/api/health`, mount `static/` ที่ `/` (ต้องอยู่บรรทัดท้ายสุดเสมอ)
+- `app/collector.py` thread เบื้องหลัง: seed → backfill 1 ปี → poll ทุก 10 นาที (+ บันทึกพยากรณ์และเติมค่าจริง) → retrain ทุก 24 ชม.
+  ได้ 429 = ถอยระยะ poll เป็น 2 เท่า (`next_wait`) ไม่เกิน 60 นาที; ผลทุกรอบเก็บใน `meta.poll_log`, นับ 429 ใน `meta.http_429`
+- `app/forecast_log.py` ตาราง `forecast_log`: `record()` เก็บพยากรณ์ครั้งแรกของแต่ละ issued_for (ไม่ทับ, ข้ามถ้าช้ากว่า 3 ชม.), `score()` เติมค่าจริงจากค่าที่วัดได้เท่านั้น, `summary()` สรุปความแม่น
+- `app/data_api.py` router สำหรับนักวิจัย: `/api/stations`, `/api/data/hourly(.csv)`, `/api/data/forecast_log.csv` (ตารางรายชั่วโมงครบทุกชั่วโมง ช่องที่ไม่มีค่า = ว่าง ไม่เติม)
+- `app/main.py` FastAPI: `/api/forecast?at=&my=` (มี `model_table` = พยากรณ์ 1–6 ชม. รายชั่วโมงของ M4/M6/M7), `/api/accuracy?days=7|30&h=`, `/api/health` (มี `issues` ที่หน้า admin แสดง), เอกสาร OpenAPI ที่ `/docs`, mount `static/` ที่ `/` (ต้องอยู่บรรทัดท้ายสุดเสมอ)
 - `static/` หน้าเว็บ HTML/CSS/JS ล้วน ไม่มี build step ใช้ ES modules ใน `static/js/`
 - `static/i18n.json` ข้อความทุกข้อความของหน้า (รวมคำแนะนำตามสถานะ `advice.*`) ห้ามเขียนข้อความไทยลงใน JS ตรง ๆ ให้ใช้ `t()`
-- `tools/` สคริปต์ Playwright (`screens.mjs`, `mylevel_check.mjs`) ไม่ใช่ส่วนของหน้าเว็บ
+- `static/accuracy.html`, `static/data.html`, `static/admin.html` หน้ารอง (ความแม่นย้อนหลัง, ข้อมูลสำหรับนักวิจัย, สถานะระบบ) ใช้ CSS และ i18n ชุดเดียวกัน
+- `tools/` สคริปต์ Playwright (`screens.mjs`, `mylevel_check.mjs`, `pages_check.mjs`) ไม่ใช่ส่วนของหน้าเว็บ
+- `tests/conftest.py` บังคับทุก test ใช้ฐานข้อมูลและโมเดลชั่วคราว ห้ามแตะ `data/` จริง
 - `data/seed/` ข้อมูลรายชั่วโมงน้ำท่วม 22 ก.ย.–9 ต.ค. 2567 ของ 3 สถานี (ห้ามแก้)
 - `tests/` ใช้ payload จริงจาก ThaiWater ใน `tests/fixtures/` และ mock เน็ตทั้งหมด
 
@@ -58,6 +64,8 @@ python -m app.cli {backfill|poll|train|info}
 - ต้องบอกเสมอว่าข้อมูลสดแค่ไหน (กรมชลฯ มักป้อนข้อมูลช้า 1–2 ชม.) เกิน 2 ชม. (`STALE_AFTER_HOURS`) ต้องเตือน และรีเฟรชแล้วได้ค่าเดิมห้ามทำให้ดูเหมือนค่าใหม่
 - เวลาที่อาจถึงเกณฑ์ (`next_threshold`) คำนวณจากค่าพยากรณ์ + ช่วง และห้ามเกิน 6 ชม.
 - คำแนะนำตามสถานะต้องเป็นแนวปฏิบัติทั่วไปเท่านั้น ห้ามใส่ข้อมูลเฉพาะพื้นที่ที่ไม่มีแหล่ง
+- ความแม่นที่แสดงต้องมาจากพยากรณ์ที่ออกจริง (`forecast_log`) หรือระบุชัดว่าเป็นผลทดสอบย้อนหลัง (CV) ห้ามสร้าง log ย้อนหลังแล้วแสดงเป็นความแม่นจริง
+- โหมดสาธิตไม่มี log จริง หน้า accuracy ต้องบอกเหตุผลและแสดงผล CV แทน
 - ต้องมีข้อความว่าเป็นต้นแบบงานวิจัย ไม่ใช่ระบบเตือนภัยทางการ อยู่ในหน้าเสมอ
 
 **ThaiWater**
@@ -82,7 +90,7 @@ python -m app.cli {backfill|poll|train|info}
 
 ## สิ่งที่ยังไม่มี (อย่าเข้าใจว่ามีแล้ว)
 
-ข้อมูลฝน, การระบายน้ำเขื่อนแม่งัด, rating curve, ข้อมูลหลายปี, การแจ้งเตือน, การเก็บ log ผลพยากรณ์เทียบค่าจริง,
+ข้อมูลฝน, การระบายน้ำเขื่อนแม่งัด, rating curve, ข้อมูลหลายปี, การแจ้งเตือน, การยืนยันตัวตนของหน้า admin (ตอนนี้อ่านอย่างเดียว ไม่มีความลับ),
 สถานี P.75/P.92/P.20 ในระบบ (หา id แล้ว ดู data-sources), กราฟหลายช่วงเวลา, ภาษาอังกฤษ, ธีมมืด, PWA
 
 แผนงานยกระดับหน้าเว็บทั้งหมดอยู่ที่ `prompts/02-ui-upgrade.md` (เฟส 1 เสร็จแล้ว: ส่วนเหนือขอบจอ)

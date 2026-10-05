@@ -43,6 +43,9 @@ MODEL_KEYS = ("ridge", "gbm", "ensemble")  # M4, M6, M7
 WARNING_HORIZON = 6               # ใช้ Ridge-delta (M4) ที่ 6 ชม. สำหรับการเตือน
 
 POLL_MINUTES = int(os.getenv("P1_POLL_MINUTES", 10))
+POLL_BACKOFF_MAX_MINUTES = 60     # หลังได้ 429 ถอยระยะ poll เป็น 2 เท่าทีละรอบ ไม่เกินค่านี้
+POLL_LOG_MAX = 144                # เก็บผล poll ล่าสุดกี่รอบใน meta (144 รอบ × 10 นาที = 24 ชม.)
+LOG_MAX_DELAY_HOURS = 3           # พยากรณ์ที่ issued_for เก่ากว่านี้ไม่บันทึกลง forecast_log (เป็นการทายย้อนหลัง)
 RETRAIN_HOURS = int(os.getenv("P1_RETRAIN_HOURS", 24))
 STALE_AFTER_HOURS = 2             # ข้อมูลเก่ากว่านี้ = แจ้งผู้ใช้ว่าข้อมูลไม่สด (กรมชลฯ ป้อนช้า 1–2 ชม. เป็นปกติ)
 UPSTREAM_STALE_HOURS = 3          # สถานีต้นน้ำไม่มีค่าใหม่นานกว่านี้ = พยากรณ์เชื่อถือได้น้อยลง

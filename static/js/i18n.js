@@ -10,7 +10,7 @@ export async function loadI18n(want = "th") {
   document.documentElement.lang = lang;
   document.querySelectorAll("[data-i18n]").forEach((n) => { n.textContent = t(n.dataset.i18n); });
   document.querySelectorAll("[data-i18n-aria]").forEach((n) => n.setAttribute("aria-label", t(n.dataset.i18nAria)));
-  document.title = t("meta.title");
+  document.title = t(document.body.dataset.titleKey || "meta.title");
 }
 
 // t("fc.summary", {h: 6, v: "3.45"}) แทน {h} {v} ในข้อความ; คืน key ถ้าไม่มีข้อความ (เห็นได้ง่ายตอนทดสอบ)

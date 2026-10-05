@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ข้อมูลสำหรับนักวิจัย — พยากรณ์ระดับน้ำ P.1</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='5' y='1' width='6' height='14' fill='%23fff' stroke='%23C23A2B'/><rect x='5' y='9' width='6' height='6' fill='%232C6E7A'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-title-key="data.meta_title">
+  <header class="wrap masthead sub-page">
+    <p class="back"><a href="./" data-i18n="nav.back">← กลับหน้าหลัก</a></p>
+    <h1 data-i18n="data.title">ข้อมูลสำหรับนักวิจัย</h1>
+    <p class="sub" data-i18n="data.lead"></p>
+  </header>
+
+  <main class="wrap page">
+    <p class="disclaimer" data-i18n="data.source"></p>
+    <p class="small"><span aria-hidden="true">TODO · </span><span data-i18n="data.source_todo"></span></p>
+
+    <section aria-labelledby="dl-title">
+      <h2 id="dl-title" class="block-title" data-i18n="data.dl_title">ดาวน์โหลดรายชั่วโมง</h2>
+      <form id="dl-form" class="dl-form">
+        <label><span data-i18n="data.start">ตั้งแต่วันที่</span> <input id="dl-start" type="date"></label>
+        <label><span data-i18n="data.end">ถึงวันที่</span> <input id="dl-end" type="date"></label>
+        <div class="dl-actions">
+          <a id="dl-csv" class="button" href="/api/data/hourly.csv" download data-i18n="data.dl_csv">ดาวน์โหลด CSV</a>
+          <a id="dl-json" class="button secondary" href="/api/data/hourly" target="_blank" rel="noopener" data-i18n="data.dl_json">เปิด JSON</a>
+        </div>
+      </form>
+      <p class="small" data-i18n="data.dl_limit"></p>
+      <p><a href="/api/data/forecast_log.csv" download data-i18n="data.dl_log">ดาวน์โหลดบันทึกพยากรณ์ทั้งหมด (CSV)</a></p>
+    </section>
+
+    <section aria-labelledby="cols-title">
+      <h2 id="cols-title" class="block-title" data-i18n="data.cols_title">คอลัมน์ใน CSV</h2>
+      <dl class="defs">
+        <dt><code>t_th</code></dt><dd data-i18n="data.col_t"></dd>
+        <dt><code>XX_msl</code></dt><dd data-i18n="data.col_msl"></dd>
+        <dt><code>P1_gauge_m</code></dt><dd data-i18n="data.col_gauge"></dd>
+        <dt><code>XX_vs_bank_m</code></dt><dd data-i18n="data.col_bank"></dd>
+      </dl>
+      <p class="small" data-i18n="data.col_stations"></p>
+    </section>
+
+    <section aria-labelledby="st-title">
+      <h2 id="st-title" class="block-title" data-i18n="data.st_title">สถานี</h2>
+      <div class="table-scroll" tabindex="0" role="region" aria-labelledby="st-title">
+        <table class="data-table">
+          <thead><tr>
+            <th scope="col" data-i18n="data.st_key">คีย์</th>
+            <th scope="col" data-i18n="data.st_code">รหัส</th>
+            <th scope="col" data-i18n="data.st_id">ThaiWater id</th>
+            <th scope="col" class="left" data-i18n="data.st_name">ที่ตั้ง</th>
+            <th scope="col" data-i18n="data.st_bank">ตลิ่ง</th>
+            <th scope="col" data-i18n="data.st_zero">ศูนย์ไม้วัด</th>
+            <th scope="col" data-i18n="data.st_travel">น้ำถึง P.1</th>
+          </tr></thead>
+          <tbody id="st-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section aria-labelledby="rules-title">
+      <h2 id="rules-title" class="block-title" data-i18n="data.rules_title">ข้อควรรู้เกี่ยวกับข้อมูล</h2>
+      <ul>
+        <li data-i18n="data.rule_hour"></li>
+        <li data-i18n="data.rule_gap"></li>
+        <li data-i18n="data.rule_delay"></li>
+        <li data-i18n="data.rule_history"></li>
+        <li data-i18n="data.rule_unofficial"></li>
+      </ul>
+    </section>
+
+    <section aria-labelledby="api-title">
+      <h2 id="api-title" class="block-title" data-i18n="data.api_title">JSON API</h2>
+      <p><span data-i18n="data.api_lead"></span> <a href="/docs" data-i18n="data.api_docs">/docs</a></p>
+      <dl class="defs api">
+        <dt><code>GET /api/stations</code></dt><dd data-i18n="data.api_stations"></dd>
+        <dt><code>GET /api/data/hourly?start=&amp;end=</code></dt><dd data-i18n="data.api_hourly"></dd>
+        <dt><code>GET /api/data/hourly.csv?start=&amp;end=</code></dt><dd data-i18n="data.api_hourly_csv"></dd>
+        <dt><code>GET /api/forecast</code></dt><dd data-i18n="data.api_forecast"></dd>
+        <dt><code>GET /api/accuracy?days=7&amp;h=6</code></dt><dd data-i18n="data.api_accuracy"></dd>
+        <dt><code>GET /api/data/forecast_log.csv?start=&amp;end=</code></dt><dd data-i18n="data.api_log_csv"></dd>
+        <dt><code>GET /api/health</code></dt><dd data-i18n="data.api_health"></dd>
+      </dl>
+      <p class="small" data-i18n="data.api_example">ตัวอย่าง</p>
+      <pre class="code"><code id="api-example">curl "/api/data/hourly.csv?start=2024-10-01&amp;end=2024-10-07" -o p1.csv</code></pre>
+    </section>
+
+    <p class="disclaimer" data-i18n="data.disclaimer"></p>
+  </main>
+
+  <footer class="footer">
+    <nav class="wrap foot-nav" aria-label="หน้าอื่น">
+      <a href="./" data-i18n="nav.home">หน้าหลัก</a>
+      <a href="accuracy.html" data-i18n="nav.accuracy">ความแม่นย้อนหลัง</a>
+      <a href="data.html" aria-current="page" data-i18n="nav.data">ข้อมูลสำหรับนักวิจัย</a>
+      <a href="admin.html" data-i18n="nav.admin">สถานะระบบ</a>
+    </nav>
+    <p class="wrap" data-i18n="disclaimer.short">ต้นแบบงานวิจัย ไม่ใช่ระบบเตือนภัยทางการ</p>
+  </footer>
+  <script type="module" src="js/data.js"></script>
+</body>
+</html>
