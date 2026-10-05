@@ -60,8 +60,9 @@ def retrain() -> dict:
 
 
 def ensure_model() -> None:
-    if model.load() is None:
-        log.info("no model yet: training from available data")
+    b = model.load()
+    if b is None or not model.is_current(b):
+        log.info("no model yet (or outdated horizons): training from available data")
         retrain()
 
 

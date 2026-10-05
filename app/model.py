@@ -63,6 +63,16 @@ def _blocked_oof(X: pd.DataFrame, y: pd.Series, h: int) -> pd.DataFrame:
     return pd.concat(out) if out else pd.DataFrame(columns=["y", "ridge", "gbm"])
 
 
+def _rmse_cm(e) -> float:
+    return round(float(np.sqrt(np.mean(np.square(e)))) * 100, 1)
+
+
+def _band(res: pd.Series) -> tuple[float, float]:
+    """ช่วง 5–95% ของ residual แต่กว้างอย่างน้อย ±RMSE เพราะข้อมูลเทรนยังน้อย (ดูรายงาน: ช่วงน้ำขึ้นเร็วพลาดได้ถึง 50 ซม.)"""
+    spread = _rmse_cm(res) / 100
+    return min(float(res.quantile(0.05)), -spread), max(float(res.quantile(0.95)), spread)
+
+
 def train(wide: pd.DataFrame) -> dict:
     now_th = dt.datetime.now(ZoneInfo("Asia/Bangkok")).replace(tzinfo=None)
     bundle = {"trained_at": now_th.isoformat(timespec="minutes"), "horizons": {},
@@ -75,19 +85,17 @@ def train(wide: pd.DataFrame) -> dict:
             bundle["p1_range"] = (float(X["p1"].min()), float(X["p1"].max()))
         oof = _blocked_oof(X, y, h)
         if len(oof):
-            ens = (oof["ridge"] + oof["gbm"]) / 2
-            res = oof["y"] - ens
-            rmse = lambda e: round(float(np.sqrt(np.mean(np.square(e)))) * 100, 1)
-            # ช่วง 5–95% แต่กว้างอย่างน้อย ±RMSE เพราะข้อมูลเทรนยังน้อย (ดูรายงาน: ช่วงน้ำขึ้นเร็วพลาดได้ถึง 50 ซม.)
-            spread = rmse(res) / 100
-            q_lo, q_hi = min(float(res.quantile(0.05)), -spread), max(float(res.quantile(0.95)), spread)
-            metrics = {"rmse_cm_ensemble": rmse(res), "rmse_cm_ridge": rmse(oof["y"] - oof["ridge"]),
-                       "rmse_cm_persistence": rmse(oof["y"]), "n_oof": int(len(oof))}
+            res = {"ridge": oof["y"] - oof["ridge"], "gbm": oof["y"] - oof["gbm"],
+                   "ensemble": oof["y"] - (oof["ridge"] + oof["gbm"]) / 2}
+            bands = {k: _band(r) for k, r in res.items()}
+            metrics = {"rmse_cm_ensemble": _rmse_cm(res["ensemble"]), "rmse_cm_ridge": _rmse_cm(res["ridge"]),
+                       "rmse_cm_gbm": _rmse_cm(res["gbm"]), "rmse_cm_persistence": _rmse_cm(oof["y"]),
+                       "n_oof": int(len(oof))}
         else:
-            q_lo, q_hi, metrics = -0.1 * h, 0.1 * h, {}
+            bands, metrics = {k: (-0.1 * h, 0.1 * h) for k in config.MODEL_KEYS}, {}
         bundle["horizons"][h] = {
             "ridge": _ridge().fit(X, y), "gbm": _gbm().fit(X, y),
-            "band": (q_lo, q_hi), "metrics": metrics, "n_train": int(len(X)),
+            "band": bands["ensemble"], "bands": bands, "metrics": metrics, "n_train": int(len(X)),
             "train_range": [str(X.index.min()), str(X.index.max())],
         }
         log.info("trained h=%d on %d hours %s", h, len(X), metrics)
@@ -132,5 +140,15 @@ def predict(bundle: dict, wide: pd.DataFrame) -> dict | None:
         g = float(m["gbm"].predict(x)[0])
         ens = now + (r + g) / 2
         lo, hi = m["band"]
-        out["horizons"][int(h)] = {"ensemble_m": ens, "ridge_m": now + r, "lo_m": ens + lo, "hi_m": ens + hi}
+        p = {"ensemble_m": ens, "ridge_m": now + r, "gbm_m": now + g, "lo_m": ens + lo, "hi_m": ens + hi}
+        for k, v in (("ridge", now + r), ("gbm", now + g)):   # ช่วงของแต่ละโมเดล (bundle รุ่นเก่าไม่มี)
+            if "bands" in m:
+                p[f"{k}_lo_m"], p[f"{k}_hi_m"] = v + m["bands"][k][0], v + m["bands"][k][1]
+        out["horizons"][int(h)] = p
     return out
+
+
+def is_current(bundle: dict) -> bool:
+    """bundle ที่เทรนก่อนเพิ่ม horizon รายชั่วโมงหรือช่วงรายโมเดล ต้องเทรนใหม่"""
+    hs = bundle.get("horizons", {})
+    return set(hs) == set(config.HORIZONS) and all("bands" in m for m in hs.values())

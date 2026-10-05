@@ -36,8 +36,10 @@ LEVELS = {
     "overflow": float(os.getenv("P1_OVERFLOW_M", 4.20)),
 }
 
-HORIZONS = [1, 3, 6, 12]          # ชั่วโมงล่วงหน้า
+HORIZONS = [1, 2, 3, 4, 5, 6, 12] # ชั่วโมงล่วงหน้า (2, 4, 5 ใช้ในตารางรายชั่วโมงของแต่ละโมเดล ไม่อยู่ในรายงานการทดลอง)
 NUMERIC_HORIZONS = [1, 3, 6]      # แสดงเป็นตัวเลข; 12 ชม. แสดงเป็นแนวโน้มเท่านั้น (ดูรายงานการทดลอง)
+TABLE_HORIZONS = [1, 2, 3, 4, 5, 6]  # ตารางเทียบโมเดลรายชั่วโมงท้ายหน้า (ห้ามเกิน 6 ชม.)
+MODEL_KEYS = ("ridge", "gbm", "ensemble")  # M4, M6, M7
 WARNING_HORIZON = 6               # ใช้ Ridge-delta (M4) ที่ 6 ชม. สำหรับการเตือน
 
 POLL_MINUTES = int(os.getenv("P1_POLL_MINUTES", 10))

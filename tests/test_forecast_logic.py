@@ -131,3 +131,41 @@ def test_api_demo_new_fields(monkeypatch):
     assert (tr["hours_min"], tr["hours_max"]) == (6, 6) and tr["source"]
     assert calm["my_level"] is None and calm["advice"]["status"] in fl.STATUS_ORDER
     assert bad.status_code == 422
+
+
+def test_model_table_hourly_each_model(monkeypatch):
+    from app import collector
+    monkeypatch.setattr(config, "DEMO", True)
+    monkeypatch.setattr(config, "COLLECT", False)
+    collector.ensure_seed()
+    collector.retrain()
+    from fastapi.testclient import TestClient
+    from app.main import app
+    with TestClient(app) as c:
+        d = c.get("/api/forecast", params={"at": "2024-10-03 07:00"}).json()
+    tab = d["model_table"]
+    assert [r["h"] for r in tab["rows"]] == [1, 2, 3, 4, 5, 6]          # รายชั่วโมง ไม่เกิน 6 ชม.
+    for r in tab["rows"]:
+        for k in ("ridge", "gbm", "ensemble"):
+            cell = r["models"][k]
+            assert cell["lo_m"] <= cell["value_m"] <= cell["hi_m"]       # ทุกค่ามีช่วงความไม่แน่นอน
+            assert cell["rmse_cm"] is not None
+    # ค่า ensemble ในตารางต้องตรงกับตัวเลขที่แสดงด้านบน
+    top = {f["h"]: f["value_m"] for f in d["forecast"]}
+    assert all(tab["rows"][h - 1]["models"]["ensemble"]["value_m"] == v for h, v in top.items())
+
+
+def test_outdated_bundle_is_retrained(monkeypatch):
+    from app import collector, model
+    b = {"horizons": {h: {"bands": {}} for h in (1, 3, 6, 12)}}
+    assert model.is_current(b) is False
+    called = []
+    monkeypatch.setattr(model, "load", lambda: b)
+    monkeypatch.setattr(collector, "retrain", lambda: called.append(1))
+    collector.ensure_model()
+    assert called == [1]
+
+
+def test_display_status_follows_rounded_value():
+    from app.main import _r, _status
+    assert _status(_r(3.698)) == "critical"     # แสดง 3.70 ต้องเป็นสีวิกฤต ไม่ใช่เฝ้าระวัง

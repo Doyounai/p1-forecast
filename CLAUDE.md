@@ -29,7 +29,7 @@ python -m app.cli {backfill|poll|train|info}
 - `app/model.py` Ridge-delta + GBM-delta, band จาก blocked CV, `predict()`, `p1_range` (ช่วงระดับที่เคยเห็นตอนเทรน)
 - `app/forecast_logic.py` ฟังก์ชันล้วนที่ตีความพยากรณ์: `next_threshold`, `my_level`, `advice_status`, `reliability`
 - `app/collector.py` thread เบื้องหลัง: seed → backfill 1 ปี → poll ทุก 10 นาที → retrain ทุก 24 ชม.
-- `app/main.py` FastAPI: `/api/forecast?at=&my=`, `/api/health`, mount `static/` ที่ `/` (ต้องอยู่บรรทัดท้ายสุดเสมอ)
+- `app/main.py` FastAPI: `/api/forecast?at=&my=` (มี `model_table` = พยากรณ์ 1–6 ชม. รายชั่วโมงของ M4/M6/M7), `/api/health`, mount `static/` ที่ `/` (ต้องอยู่บรรทัดท้ายสุดเสมอ)
 - `static/` หน้าเว็บ HTML/CSS/JS ล้วน ไม่มี build step ใช้ ES modules ใน `static/js/`
 - `static/i18n.json` ข้อความทุกข้อความของหน้า (รวมคำแนะนำตามสถานะ `advice.*`) ห้ามเขียนข้อความไทยลงใน JS ตรง ๆ ให้ใช้ `t()`
 - `tools/` สคริปต์ Playwright (`screens.mjs`, `mylevel_check.mjs`) ไม่ใช่ส่วนของหน้าเว็บ
@@ -47,6 +47,9 @@ python -m app.cli {backfill|poll|train|info}
 - ทำนาย "การเปลี่ยนแปลง" ของระดับน้ำเสมอ ห้ามเปลี่ยนเป็นทำนายระดับตรง ๆ
 - ตัวเลขที่แสดง = M7 ensemble ส่วนการเตือนที่ 6 ชม. ใช้ M4 Ridge-delta
 - 12 ชม. แสดงเป็นแนวโน้ม (ขึ้น/ทรง/ลง) เท่านั้น ห้ามแสดงเป็นตัวเลข
+- โมเดลเทรน horizon 1–6 และ 12 ชม. (`config.HORIZONS`) โดย 2/4/5 ชม. ใช้เฉพาะตารางเทียบโมเดลท้ายหน้า และไม่อยู่ในรายงานการทดลอง ต้องบอกผู้ใช้เสมอ
+- bundle ที่ horizon ไม่ตรง `config.HORIZONS` หรือไม่มี `bands` รายโมเดล ระบบจะเทรนใหม่ตอนเปิด (`model.is_current`)
+- สีสถานะของตัวเลขพยากรณ์คิดจากค่าที่ปัดแล้ว (เห็น 3.70 = สีวิกฤต)
 - ทุกค่าพยากรณ์ต้องแสดงพร้อมช่วงความไม่แน่นอน
 - ถ้าระดับน้ำปัจจุบันอยู่นอกช่วงข้อมูลเทรน ต้องบอกผู้ใช้ว่าความแม่นยังไม่เคยถูกทดสอบในสภาวะนี้
 

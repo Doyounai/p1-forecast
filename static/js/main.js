@@ -4,6 +4,7 @@ import { setFresh } from "./fresh.js";
 import { drawGauge } from "./gauge.js";
 import { renderAdvice, renderNow, renderOutlook, renderTable } from "./hero.js";
 import { loadI18n, t } from "./i18n.js";
+import { renderModelTable } from "./modeltable.js";
 import { getMyLevel, setupMyLevel } from "./mylevel.js";
 import { renderUpstream } from "./upstream.js";
 import { $, dayLabel, hhmm, parseT } from "./util.js";
@@ -30,6 +31,7 @@ function render(d) {
   $("legend-my").hidden = my == null;
   renderUpstream(d);
   renderModel(d);
+  renderModelTable(d);
 }
 
 async function load(newAt) {

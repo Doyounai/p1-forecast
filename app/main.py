@@ -32,7 +32,7 @@ def _r(v, n=2):
     return None if v is None or (isinstance(v, float) and math.isnan(v)) else round(float(v), n)
 
 
-_status = forecast_logic.status
+_status = forecast_logic.status   # สีของตัวเลขที่แสดงให้คิดจากค่าที่ปัดแล้ว จะได้ตรงกับตัวเลขที่ผู้ใช้เห็น
 
 
 def _now(at: str | None) -> dt.datetime:
@@ -60,6 +60,27 @@ def _upstream(wide: pd.DataFrame) -> list[dict]:
                          "change_3h_m": _r(v - prev.iloc[-1]) if len(prev) else None})
         out.append(item)
     return out
+
+
+def _model_table(bundle: dict, pred: dict | None) -> dict | None:
+    """พยากรณ์ของแต่ละโมเดลทุกชั่วโมงถึง 6 ชม. พร้อมช่วงและ RMSE จาก blocked CV ของ horizon นั้น"""
+    if not pred:
+        return None
+    t0, rows = pred["issued_for"], []
+    for h in config.TABLE_HORIZONS:
+        p, m = pred["horizons"].get(h), bundle["horizons"].get(h, {})
+        if p is None:
+            continue
+        met = m.get("metrics", {})
+        cells = {}
+        for k in config.MODEL_KEYS:
+            v = p[f"{k}_m"]
+            lo, hi = (p["lo_m"], p["hi_m"]) if k == "ensemble" else (p.get(f"{k}_lo_m"), p.get(f"{k}_hi_m"))
+            cells[k] = {"value_m": _r(v), "lo_m": _r(lo), "hi_m": _r(hi), "status": _status(_r(v)),
+                        "rmse_cm": met.get(f"rmse_cm_{k}")}
+        rows.append({"h": h, "t": (t0 + pd.Timedelta(hours=h)).isoformat(), "models": cells,
+                     "rmse_cm_persistence": met.get("rmse_cm_persistence")})
+    return {"issued_for": t0.isoformat(), "now_m": _r(pred["now_m"]), "rows": rows}
 
 
 def _p1_range(bundle: dict):
@@ -93,7 +114,7 @@ def forecast(at: str | None = Query(None, description="เฉพาะโหม�
             p = pred["horizons"][h]
             m = bundle["horizons"][h]["metrics"]
             fc.append({"h": h, "t": (t0 + pd.Timedelta(hours=h)).isoformat(), "value_m": _r(p["ensemble_m"]),
-                       "lo_m": _r(p["lo_m"]), "hi_m": _r(p["hi_m"]), "status": _status(p["ensemble_m"]),
+                       "lo_m": _r(p["lo_m"]), "hi_m": _r(p["hi_m"]), "status": _status(_r(p["ensemble_m"])),
                        "rmse_cm": m.get("rmse_cm_ensemble")})
         d12 = pred["horizons"][12]["ensemble_m"] - pred["now_m"]
         trend = {"h": 12, "change_m": _r(d12), "direction": "rising" if d12 > 0.15 else "falling" if d12 < -0.15 else "steady"}
@@ -123,6 +144,7 @@ def forecast(at: str | None = Query(None, description="เฉพาะโหม�
         "next_threshold": forecast_logic.next_threshold(pred, now=now),
         "my_level": forecast_logic.my_level(pred, my, last_v, now=now) if my is not None else None,
         "advice": {"status": adv, "basis": basis},
+        "model_table": _model_table(bundle, pred),
         "reliability": forecast_logic.reliability(last_v, _p1_range(bundle), wide, now, pred, stale, age_h),
         "history": [{"t": t.isoformat(), "m": _r(v)} for t, v in hist.items()],
         "upstream": _upstream(wide),

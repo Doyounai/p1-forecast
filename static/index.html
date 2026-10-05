@@ -124,6 +124,29 @@
       <p class="disclaimer" data-i18n="disclaimer.full">นี่คือต้นแบบงานวิจัย ไม่ใช่ระบบเตือนภัยทางการ ถ้าน้ำใกล้ถึงบ้าน ให้ทำตามประกาศของจังหวัดและกรมชลประทาน
         สายด่วนกรมชลประทาน 1460 และ ปภ. 1784</p>
     </section>
+
+    <section class="model-table" aria-labelledby="mt-title">
+      <h2 id="mt-title" class="block-title" data-i18n="mt.title">พยากรณ์รายชั่วโมงของแต่ละโมเดล</h2>
+      <p id="mt-intro" class="small"></p>
+      <div class="mt-scroll" tabindex="0" role="region" data-i18n-aria="mt.aria">
+        <table id="mt-table" class="mt">
+          <thead>
+            <tr>
+              <th scope="col" data-i18n="mt.col_time">ล่วงหน้า</th>
+              <th scope="col"><span data-i18n="mt.ridge">M4 Ridge</span><span class="mt-sub" data-i18n="mt.ridge_sub"></span></th>
+              <th scope="col"><span data-i18n="mt.gbm">M6 GBM</span><span class="mt-sub" data-i18n="mt.gbm_sub"></span></th>
+              <th scope="col" class="is-main"><span data-i18n="mt.ensemble">M7 เฉลี่ย</span><span class="mt-sub" data-i18n="mt.ensemble_sub"></span></th>
+            </tr>
+          </thead>
+          <tbody id="mt-body"></tbody>
+        </table>
+      </div>
+      <ul class="mt-notes small">
+        <li data-i18n="mt.note_band"></li>
+        <li data-i18n="mt.note_rmse"></li>
+        <li data-i18n="mt.note_models"></li>
+      </ul>
+    </section>
   </main>
 
   <footer class="footer">

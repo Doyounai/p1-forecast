@@ -2,8 +2,6 @@
 import { t } from "./i18n.js";
 import { $, fmt, h, hhmm, parseT } from "./util.js";
 
-const statusOf = (v, L) => (v >= L.overflow ? "overflow" : v >= L.critical ? "critical" : v >= L.watch ? "watch" : "normal");
-
 function levelSentence(d) {
   const v = d.p1.level_m, L = d.levels;
   if (v >= L.overflow) return t("level.over_overflow", { d: fmt(v - L.overflow) });
@@ -99,7 +97,7 @@ export function renderTable(d) {
     return;
   }
   d.forecast.forEach((f) => {
-    const st = statusOf(f.value_m, d.levels);
+    const st = f.status;
     const li = h("li", `is-${st}`);
     const when = h("span", "when", t("fc.row_when", { h: f.h }) + " ");
     when.append(h("span", "small", t("fc.row_time", { time: hhmm(parseT(f.t)) })));
